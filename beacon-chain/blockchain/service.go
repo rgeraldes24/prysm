@@ -20,6 +20,7 @@ import (
 	coreTime "github.com/prysmaticlabs/prysm/v4/beacon-chain/core/time"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/core/transition"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/db"
+	"github.com/prysmaticlabs/prysm/v4/beacon-chain/db/filters"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/execution"
 	f "github.com/prysmaticlabs/prysm/v4/beacon-chain/forkchoice"
 	forkchoicetypes "github.com/prysmaticlabs/prysm/v4/beacon-chain/forkchoice/types"
@@ -36,6 +37,7 @@ import (
 	"github.com/prysmaticlabs/prysm/v4/config/params"
 	"github.com/prysmaticlabs/prysm/v4/consensus-types/blocks"
 	"github.com/prysmaticlabs/prysm/v4/consensus-types/interfaces"
+	"github.com/prysmaticlabs/prysm/v4/consensus-types/primitives"
 	"github.com/prysmaticlabs/prysm/v4/encoding/bytesutil"
 	ethpb "github.com/prysmaticlabs/prysm/v4/proto/prysm/v1alpha1"
 	prysmTime "github.com/prysmaticlabs/prysm/v4/time"
@@ -67,26 +69,27 @@ type Service struct {
 
 // config options for the service.
 type config struct {
-	BeaconBlockBuf          int
-	ChainStartFetcher       execution.ChainStartFetcher
-	BeaconDB                db.HeadAccessDatabase
-	DepositCache            cache.DepositCache
-	ProposerSlotIndexCache  *cache.ProposerPayloadIDsCache
-	AttPool                 attestations.Pool
-	ExitPool                voluntaryexits.PoolManager
-	SlashingPool            slashings.PoolManager
-	BLSToExecPool           blstoexec.PoolManager
-	P2p                     p2p.Broadcaster
-	MaxRoutines             int
-	StateNotifier           statefeed.Notifier
-	ForkChoiceStore         f.ForkChoicer
-	AttService              *attestations.Service
-	StateGen                *stategen.State
-	SlasherAttestationsFeed *event.Feed
-	WeakSubjectivityCheckpt *ethpb.Checkpoint
-	BlockFetcher            execution.POWBlockFetcher
-	FinalizedStateAtStartUp state.BeaconState
-	ExecutionEngineCaller   execution.EngineCaller
+	BeaconBlockBuf                 int
+	ChainStartFetcher              execution.ChainStartFetcher
+	BeaconDB                       db.HeadAccessDatabase
+	DepositCache                   cache.DepositCache
+	ProposerSlotIndexCache         *cache.ProposerPayloadIDsCache
+	AttPool                        attestations.Pool
+	ExitPool                       voluntaryexits.PoolManager
+	SlashingPool                   slashings.PoolManager
+	BLSToExecPool                  blstoexec.PoolManager
+	P2p                            p2p.Broadcaster
+	MaxRoutines                    int
+	StateNotifier                  statefeed.Notifier
+	ForkChoiceStore                f.ForkChoicer
+	AttService                     *attestations.Service
+	StateGen                       *stategen.State
+	SlasherAttestationsFeed        *event.Feed
+	WeakSubjectivityCheckpt        *ethpb.Checkpoint
+	BlockFetcher                   execution.POWBlockFetcher
+	FinalizedStateAtStartUp        state.BeaconState
+	LoadUnfinalizedBlocksAtStartup bool
+	ExecutionEngineCaller          execution.EngineCaller
 }
 
 var ErrMissingClockSetter = errors.New("blockchain Service initialized without a startup.ClockSetter")
@@ -210,6 +213,25 @@ func (s *Service) Status() error {
 	return nil
 }
 
+// loadBlocks loads the blocks between start slot and end slot.
+func (s *Service) loadBlocks(ctx context.Context, startSlot, endSlot primitives.Slot) ([]interfaces.ReadOnlySignedBeaconBlock, error) {
+	// Nothing to load for invalid range.
+	if startSlot > endSlot {
+		return nil, fmt.Errorf("start slot %d > end slot %d", startSlot, endSlot)
+	}
+	filter := filters.NewFilter().SetStartSlot(startSlot).SetEndSlot(endSlot)
+	blocks, blockRoots, err := s.cfg.BeaconDB.Blocks(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	// The retrieved blocks and block roots have to be in the same length given same filter.
+	if len(blocks) != len(blockRoots) {
+		return nil, errors.New("length of blocks and roots don't match")
+	}
+
+	return blocks, nil
+}
+
 // StartFromSavedState initializes the blockchain using a previously saved finalized checkpoint.
 func (s *Service) StartFromSavedState(saved state.BeaconState) error {
 	log.Info("Blockchain data already exists in DB, initializing...")
@@ -273,6 +295,13 @@ func (s *Service) StartFromSavedState(saved state.BeaconState) error {
 			}
 		}
 	}
+
+	if s.cfg.LoadUnfinalizedBlocksAtStartup {
+		if err := s.processUnfinalizedBlocksFromDB(); err != nil {
+			return errors.Wrap(err, "could not process unfinalized blocks from db")
+		}
+	}
+
 	// not attempting to save initial sync blocks here, because there shouldn't be any until
 	// after the statefeed.Initialized event is fired (below)
 	if err := s.wsVerifier.VerifyWeakSubjectivity(s.ctx, finalized.Epoch); err != nil {

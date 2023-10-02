@@ -168,6 +168,11 @@ var (
 		Name:  "disable-aggregate-parallel",
 		Usage: "Disables parallel aggregation of attestations",
 	}
+
+	loadUnfinalizedBlocksAtStartup = &cli.BoolFlag{
+		Name:  "load-unfinalized-blocks-at-startup",
+		Usage: "Enables loading the unfinalized blocks during the beacon chain head initialization",
+	}
 )
 
 // devModeFlags holds list of flags that are set when development mode is on.
@@ -226,6 +231,7 @@ var BeaconChainFlags = append(deprecatedBeaconFlags, append(deprecatedFlags, []c
 	disableResourceManager,
 	DisableRegistrationCache,
 	disableAggregateParallel,
+	loadUnfinalizedBlocksAtStartup,
 }...)...)
 
 // E2EBeaconChainFlags contains a list of the beacon chain feature flags to be tested in E2E.

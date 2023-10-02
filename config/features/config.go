@@ -80,8 +80,8 @@ type Flags struct {
 	// AggregateIntervals specifies the time durations at which we aggregate attestations preparing for forkchoice.
 	AggregateIntervals [3]time.Duration
 
-	// LoadUnfinalizedBlocksAtStartup specifies whether to take the the unfinalized blocks into consideration during the chain head initialization.
-	LoadUnfinalizedBlocksAtStartup bool
+	// StartFromFinalizedCheckpoint instructs the blockchain service to set the head to the finalized checkpoint during the beacon chain init.
+	StartFromFinalizedCheckpoint bool
 }
 
 var featureConfig *Flags
@@ -259,8 +259,8 @@ func ConfigureBeaconChain(ctx *cli.Context) error {
 		cfg.EnableEIP4881 = true
 	}
 	cfg.AggregateIntervals = [3]time.Duration{aggregateFirstInterval.Value, aggregateSecondInterval.Value, aggregateThirdInterval.Value}
-	if ctx.Bool(loadUnfinalizedBlocksAtStartup.Name) {
-		cfg.LoadUnfinalizedBlocksAtStartup = true
+	if ctx.Bool(startFromFinalizedCheckpoint.Name) {
+		cfg.StartFromFinalizedCheckpoint = true
 	}
 	Init(cfg)
 	return nil

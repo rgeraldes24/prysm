@@ -169,9 +169,9 @@ var (
 		Usage: "Disables parallel aggregation of attestations",
 	}
 
-	loadUnfinalizedBlocksAtStartup = &cli.BoolFlag{
-		Name:  "load-unfinalized-blocks-at-startup",
-		Usage: "Enables loading the unfinalized blocks during the beacon chain head initialization",
+	startFromFinalizedCheckpoint = &cli.BoolFlag{
+		Name:  "start-from-finalized-checkpoint",
+		Usage: "Informs the blockchain service to set the head to the finalized checkpoint at startup",
 	}
 )
 
@@ -231,7 +231,7 @@ var BeaconChainFlags = append(deprecatedBeaconFlags, append(deprecatedFlags, []c
 	disableResourceManager,
 	DisableRegistrationCache,
 	disableAggregateParallel,
-	loadUnfinalizedBlocksAtStartup,
+	startFromFinalizedCheckpoint,
 }...)...)
 
 // E2EBeaconChainFlags contains a list of the beacon chain feature flags to be tested in E2E.

@@ -69,27 +69,27 @@ type Service struct {
 
 // config options for the service.
 type config struct {
-	BeaconBlockBuf                 int
-	ChainStartFetcher              execution.ChainStartFetcher
-	BeaconDB                       db.HeadAccessDatabase
-	DepositCache                   cache.DepositCache
-	ProposerSlotIndexCache         *cache.ProposerPayloadIDsCache
-	AttPool                        attestations.Pool
-	ExitPool                       voluntaryexits.PoolManager
-	SlashingPool                   slashings.PoolManager
-	BLSToExecPool                  blstoexec.PoolManager
-	P2p                            p2p.Broadcaster
-	MaxRoutines                    int
-	StateNotifier                  statefeed.Notifier
-	ForkChoiceStore                f.ForkChoicer
-	AttService                     *attestations.Service
-	StateGen                       *stategen.State
-	SlasherAttestationsFeed        *event.Feed
-	WeakSubjectivityCheckpt        *ethpb.Checkpoint
-	BlockFetcher                   execution.POWBlockFetcher
-	FinalizedStateAtStartUp        state.BeaconState
-	LoadUnfinalizedBlocksAtStartup bool
-	ExecutionEngineCaller          execution.EngineCaller
+	BeaconBlockBuf               int
+	ChainStartFetcher            execution.ChainStartFetcher
+	BeaconDB                     db.HeadAccessDatabase
+	DepositCache                 cache.DepositCache
+	ProposerSlotIndexCache       *cache.ProposerPayloadIDsCache
+	AttPool                      attestations.Pool
+	ExitPool                     voluntaryexits.PoolManager
+	SlashingPool                 slashings.PoolManager
+	BLSToExecPool                blstoexec.PoolManager
+	P2p                          p2p.Broadcaster
+	MaxRoutines                  int
+	StateNotifier                statefeed.Notifier
+	ForkChoiceStore              f.ForkChoicer
+	AttService                   *attestations.Service
+	StateGen                     *stategen.State
+	SlasherAttestationsFeed      *event.Feed
+	WeakSubjectivityCheckpt      *ethpb.Checkpoint
+	BlockFetcher                 execution.POWBlockFetcher
+	FinalizedStateAtStartUp      state.BeaconState
+	StartFromFinalizedCheckpoint bool
+	ExecutionEngineCaller        execution.EngineCaller
 }
 
 var ErrMissingClockSetter = errors.New("blockchain Service initialized without a startup.ClockSetter")
@@ -296,7 +296,7 @@ func (s *Service) StartFromSavedState(saved state.BeaconState) error {
 		}
 	}
 
-	if s.cfg.LoadUnfinalizedBlocksAtStartup {
+	if !s.cfg.StartFromFinalizedCheckpoint {
 		if err := s.processUnfinalizedBlocksFromDB(); err != nil {
 			return errors.Wrap(err, "could not process unfinalized blocks from db")
 		}

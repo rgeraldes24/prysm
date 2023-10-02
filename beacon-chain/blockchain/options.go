@@ -172,9 +172,9 @@ func WithClockSynchronizer(gs *startup.ClockSynchronizer) Option {
 	}
 }
 
-func WithUnfinalizedHeadAtStartup() Option {
+func WithFinalizedHeadAtStartup() Option {
 	return func(s *Service) error {
-		s.cfg.LoadUnfinalizedBlocksAtStartup = true
+		s.cfg.StartFromFinalizedCheckpoint = true
 		return nil
 	}
 }

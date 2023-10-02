@@ -638,8 +638,8 @@ func (b *BeaconNode) registerBlockchainService(fc forkchoice.ForkChoicer, gs *st
 		blockchain.WithClockSynchronizer(gs),
 	)
 
-	if features.Get().LoadUnfinalizedBlocksAtStartup {
-		opts = append(opts, blockchain.WithUnfinalizedHeadAtStartup())
+	if features.Get().StartFromFinalizedCheckpoint {
+		opts = append(opts, blockchain.WithFinalizedHeadAtStartup())
 	}
 
 	blockchainService, err := blockchain.NewService(b.ctx, opts...)

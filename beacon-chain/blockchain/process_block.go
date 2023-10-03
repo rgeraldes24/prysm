@@ -683,6 +683,8 @@ func (s *Service) handleInvalidExecutionError(ctx context.Context, err error, bl
 //  1. Apply fork choice to the unfinalized block
 //  2. Save latest head info
 func (s *Service) processUnfinalizedBlocksFromDB() error {
+	startTime := time.Now()
+
 	headBlkDB, err := s.cfg.BeaconDB.HeadBlock(s.ctx)
 	if err != nil {
 		return errors.Wrap(err, "could not get head block from db")
@@ -692,11 +694,21 @@ func (s *Service) processUnfinalizedBlocksFromDB() error {
 	}
 
 	finalizedSlot := s.head.block.Block().Slot()
+
+	fields := logrus.Fields{
+		"#blocks":       0,
+		"finalizedSlot": finalizedSlot,
+		"headSlot":      headBlkDB.Block().Slot(),
+	}
+
 	if startSlot, endSlot := finalizedSlot+1, headBlkDB.Block().Slot(); startSlot <= endSlot {
 		unfinalizedBlks, err := loadBlocks(s.ctx, s.cfg.BeaconDB, startSlot, endSlot)
 		if err != nil {
 			return errors.Wrap(err, "could not get unfinalized blocks from db")
 		}
+		fields["#blocks"] = len(unfinalizedBlks)
+		fields["startSlot"] = startSlot
+		fields["endSlot"] = endSlot
 
 		for _, blk := range unfinalizedBlks {
 			blkCopy, err := blk.Copy()
@@ -768,6 +780,9 @@ func (s *Service) processUnfinalizedBlocksFromDB() error {
 
 		}
 	}
+
+	fields["processingTime"] = time.Since(startTime)
+	log.WithFields(fields).Debug("Processed unfinalized blocks from DB")
 
 	return nil
 }

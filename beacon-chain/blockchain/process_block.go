@@ -14,6 +14,8 @@ import (
 	coreTime "github.com/prysmaticlabs/prysm/v4/beacon-chain/core/time"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/core/transition"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/db"
+	"github.com/prysmaticlabs/prysm/v4/beacon-chain/db/filters"
+	"github.com/prysmaticlabs/prysm/v4/beacon-chain/db/iface"
 	forkchoicetypes "github.com/prysmaticlabs/prysm/v4/beacon-chain/forkchoice/types"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/state"
 	"github.com/prysmaticlabs/prysm/v4/config/features"
@@ -685,15 +687,15 @@ func (s *Service) processUnfinalizedBlocksFromDB() error {
 	if err != nil {
 		return errors.Wrap(err, "could not get head block from db")
 	}
+	if headBlkDB == nil || headBlkDB.IsNil() {
+		return nil
+	}
 
 	if startSlot, endSlot := s.head.block.Block().Slot(), headBlkDB.Block().Slot(); endSlot > startSlot {
-		unfinalizedBlks, err := s.loadBlocks(s.ctx, startSlot+1, endSlot)
+		unfinalizedBlks, err := loadBlocks(s.ctx, s.cfg.BeaconDB, startSlot.Add(1), endSlot)
 		if err != nil {
 			return errors.Wrap(err, "could not get unfinalized blocks from db")
 		}
-
-		s.cfg.ForkChoiceStore.Lock()
-		defer s.cfg.ForkChoiceStore.Unlock()
 
 		for _, blk := range unfinalizedBlks {
 			blkCopy, err := blk.Copy()
@@ -762,4 +764,27 @@ func (s *Service) processUnfinalizedBlocksFromDB() error {
 	}
 
 	return nil
+}
+
+// loadBlocks loads the blocks between start slot and end slot and it fails if there's a block missing.
+func loadBlocks(ctx context.Context, beaconDB iface.HeadAccessDatabase, startSlot, endSlot primitives.Slot) ([]interfaces.ReadOnlySignedBeaconBlock, error) {
+	// Nothing to load for invalid range.
+	if startSlot > endSlot {
+		return nil, fmt.Errorf("start slot %d > end slot %d", startSlot, endSlot)
+	}
+	filter := filters.NewFilter().SetStartSlot(startSlot).SetEndSlot(endSlot)
+	blocks, blockRoots, err := beaconDB.Blocks(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	// The retrieved blocks and block roots have to be in the same length given same filter.
+	if len(blocks) != len(blockRoots) {
+		return nil, fmt.Errorf("length of blocks(%d) and roots(%d) don't match", len(blocks), len(blockRoots))
+	}
+	// Length of retrieved blocks and slots must match
+	if rangeLen := endSlot - startSlot + 1; uint64(len(blocks)) != uint64(rangeLen) {
+		return nil, fmt.Errorf("length of blocks(%d) and slots(%d) don't match", len(blocks), rangeLen)
+	}
+
+	return blocks, nil
 }

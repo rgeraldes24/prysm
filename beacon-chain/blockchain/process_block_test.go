@@ -41,6 +41,7 @@ import (
 	prysmTime "github.com/prysmaticlabs/prysm/v4/time"
 	"github.com/prysmaticlabs/prysm/v4/time/slots"
 	logTest "github.com/sirupsen/logrus/hooks/test"
+	"golang.org/x/exp/slices"
 )
 
 func TestStore_OnBlockBatch(t *testing.T) {
@@ -2105,4 +2106,103 @@ func Test_commitmentsToCheck(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLoadBlocks(t *testing.T) {
+	type args struct {
+		blocksToSave       []*ethpb.SignedBeaconBlock
+		startSlot, endSlot primitives.Slot
+	}
+
+	var startSlot, endSlot primitives.Slot = 2, 5
+	rangeLen := endSlot - startSlot + 1
+	blocksAsc := make([]*ethpb.SignedBeaconBlock, 0)
+	for i := startSlot; i <= endSlot; i++ {
+		blk := util.NewBeaconBlock()
+		blk.Block.Slot = primitives.Slot(i)
+		blocksAsc = append(blocksAsc, blk)
+	}
+
+	blocksDesc := make([]*ethpb.SignedBeaconBlock, len(blocksAsc))
+	copy(blocksDesc, blocksAsc)
+	slices.Reverse(blocksDesc)
+
+	tests := []struct {
+		name      string
+		input     args
+		output    []*ethpb.SignedBeaconBlock
+		wantedErr string
+	}{
+		{
+			name:      "start slot > end slot",
+			input:     args{startSlot: endSlot, endSlot: startSlot},
+			wantedErr: fmt.Sprintf("start slot %d > end slot %d", endSlot, startSlot),
+		},
+		{
+			name: "start slot = end slot",
+			input: args{
+				blocksToSave: blocksAsc,
+				startSlot:    startSlot,
+				endSlot:      startSlot,
+			},
+			output: []*ethpb.SignedBeaconBlock{blocksAsc[0]},
+		},
+		{
+			name: "length of retrieved blocks and slots must match",
+			input: args{
+				blocksToSave: blocksAsc,
+				startSlot:    startSlot,
+				endSlot:      endSlot.Add(1),
+			},
+			wantedErr: fmt.Sprintf("length of blocks(%d) and slots(%d) don't match", len(blocksAsc), rangeLen+1),
+		},
+		{
+			name: "asc order",
+			input: args{
+				blocksToSave: blocksAsc,
+				startSlot:    startSlot,
+				endSlot:      endSlot,
+			},
+			output: blocksAsc,
+		},
+		{
+			name: "desc order",
+			input: args{
+				blocksToSave: blocksDesc,
+				startSlot:    startSlot,
+				endSlot:      endSlot,
+			},
+			output: blocksAsc,
+		},
+	}
+
+	wg := new(sync.WaitGroup)
+	for _, tt := range tests {
+		wg.Add(1)
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				wg.Done()
+			}()
+
+			_, tr := minimalTestService(t)
+			ctx, beaconDB := tr.ctx, tr.db
+
+			for _, blk := range tt.input.blocksToSave {
+				util.SaveBlock(t, ctx, beaconDB, blk)
+			}
+
+			savedBlks, err := loadBlocks(ctx, beaconDB, tt.input.startSlot, tt.input.endSlot)
+			if tt.wantedErr != "" {
+				assert.ErrorContains(t, tt.wantedErr, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, len(tt.output), len(savedBlks))
+
+				for i, blk := range tt.output {
+					require.Equal(t, blk.Block.Slot, savedBlks[i].Block().Slot())
+				}
+			}
+		})
+	}
+	wg.Wait()
 }

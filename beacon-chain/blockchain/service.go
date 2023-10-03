@@ -20,7 +20,6 @@ import (
 	coreTime "github.com/prysmaticlabs/prysm/v4/beacon-chain/core/time"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/core/transition"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/db"
-	"github.com/prysmaticlabs/prysm/v4/beacon-chain/db/filters"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/execution"
 	f "github.com/prysmaticlabs/prysm/v4/beacon-chain/forkchoice"
 	forkchoicetypes "github.com/prysmaticlabs/prysm/v4/beacon-chain/forkchoice/types"
@@ -37,7 +36,6 @@ import (
 	"github.com/prysmaticlabs/prysm/v4/config/params"
 	"github.com/prysmaticlabs/prysm/v4/consensus-types/blocks"
 	"github.com/prysmaticlabs/prysm/v4/consensus-types/interfaces"
-	"github.com/prysmaticlabs/prysm/v4/consensus-types/primitives"
 	"github.com/prysmaticlabs/prysm/v4/encoding/bytesutil"
 	ethpb "github.com/prysmaticlabs/prysm/v4/proto/prysm/v1alpha1"
 	prysmTime "github.com/prysmaticlabs/prysm/v4/time"
@@ -211,25 +209,6 @@ func (s *Service) Status() error {
 		return fmt.Errorf("too many goroutines (%d)", runtime.NumGoroutine())
 	}
 	return nil
-}
-
-// loadBlocks loads the blocks between start slot and end slot.
-func (s *Service) loadBlocks(ctx context.Context, startSlot, endSlot primitives.Slot) ([]interfaces.ReadOnlySignedBeaconBlock, error) {
-	// Nothing to load for invalid range.
-	if startSlot > endSlot {
-		return nil, fmt.Errorf("start slot %d > end slot %d", startSlot, endSlot)
-	}
-	filter := filters.NewFilter().SetStartSlot(startSlot).SetEndSlot(endSlot)
-	blocks, blockRoots, err := s.cfg.BeaconDB.Blocks(ctx, filter)
-	if err != nil {
-		return nil, err
-	}
-	// The retrieved blocks and block roots have to be in the same length given same filter.
-	if len(blocks) != len(blockRoots) {
-		return nil, errors.New("length of blocks and roots don't match")
-	}
-
-	return blocks, nil
 }
 
 // StartFromSavedState initializes the blockchain using a previously saved finalized checkpoint.

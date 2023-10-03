@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/pkg/errors"
+	blockchainTesting "github.com/prysmaticlabs/prysm/v4/beacon-chain/blockchain/testing"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/cache"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/core/blocks"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/core/signing"
@@ -23,6 +24,7 @@ import (
 	mockExecution "github.com/prysmaticlabs/prysm/v4/beacon-chain/execution/testing"
 	doublylinkedtree "github.com/prysmaticlabs/prysm/v4/beacon-chain/forkchoice/doubly-linked-tree"
 	forkchoicetypes "github.com/prysmaticlabs/prysm/v4/beacon-chain/forkchoice/types"
+	"github.com/prysmaticlabs/prysm/v4/beacon-chain/operations/voluntaryexits"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/state"
 	"github.com/prysmaticlabs/prysm/v4/config/features"
 	fieldparams "github.com/prysmaticlabs/prysm/v4/config/fieldparams"
@@ -2115,7 +2117,6 @@ func TestLoadBlocks(t *testing.T) {
 	}
 
 	var startSlot, endSlot primitives.Slot = 2, 5
-	rangeLen := endSlot - startSlot + 1
 	blocksAsc := make([]*ethpb.SignedBeaconBlock, 0)
 	for i := startSlot; i <= endSlot; i++ {
 		blk := util.NewBeaconBlock()
@@ -2146,15 +2147,6 @@ func TestLoadBlocks(t *testing.T) {
 				endSlot:      startSlot,
 			},
 			output: []*ethpb.SignedBeaconBlock{blocksAsc[0]},
-		},
-		{
-			name: "length of retrieved blocks and slots must match",
-			input: args{
-				blocksToSave: blocksAsc,
-				startSlot:    startSlot,
-				endSlot:      endSlot.Add(1),
-			},
-			wantedErr: fmt.Sprintf("length of blocks(%d) and slots(%d) don't match", len(blocksAsc), rangeLen+1),
 		},
 		{
 			name: "asc order",
@@ -2201,6 +2193,129 @@ func TestLoadBlocks(t *testing.T) {
 				for i, blk := range tt.output {
 					require.Equal(t, blk.Block.Slot, savedBlks[i].Block().Slot())
 				}
+			}
+		})
+	}
+	wg.Wait()
+}
+
+func TestService_ProcessUnfinalizedBlocksFromDB(t *testing.T) {
+	ctx := context.Background()
+
+	genesisSt, keys := util.DeterministicGenesisState(t, 64)
+	copiedGenSt := genesisSt.Copy()
+	genFullBlock := func(t *testing.T, conf *util.BlockGenConfig, slot primitives.Slot) *ethpb.SignedBeaconBlock {
+		blk, err := util.GenerateFullBlock(copiedGenSt.Copy(), keys, conf, slot)
+		require.NoError(t, err)
+		return blk
+	}
+
+	type args struct {
+		block *ethpb.SignedBeaconBlock
+	}
+
+	tests := []struct {
+		name      string
+		args      args
+		wantedErr string
+		check     func(*testing.T, *Service)
+	}{
+		{
+			name: "head block is not set, keep using the finalized head",
+			args: args{},
+			check: func(t *testing.T, s *Service) {
+				if hs := s.head.state.Slot(); hs != 0 {
+					t.Errorf("Unexpected state slot. Got %d but wanted %d", hs, 0)
+				}
+				if bs := s.head.block.Block().Slot(); bs != 0 {
+					t.Errorf("Unexpected head block slot. Got %d but wanted %d", bs, 0)
+				}
+			},
+		},
+		{
+			name: "chain head slot + 1 > db head block slot, keep using the finalized head",
+			args: args{
+				block: util.NewBeaconBlock(), // slot 0
+			},
+			check: func(t *testing.T, s *Service) {
+				if hs := s.head.state.Slot(); hs != 0 {
+					t.Errorf("Unexpected state slot. Got %d but wanted %d", hs, 0)
+				}
+				if bs := s.head.block.Block().Slot(); bs != 0 {
+					t.Errorf("Unexpected head block slot. Got %d but wanted %d", bs, 0)
+				}
+			},
+		},
+		{
+			name: "applies unfinalized block with state transition",
+			args: args{
+				block: genFullBlock(t, util.DefaultBlockGenConfig(), 2),
+			},
+			check: func(t *testing.T, s *Service) {
+				if hs := s.head.state.Slot(); hs != 2 {
+					t.Errorf("Unexpected state slot. Got %d but wanted %d", hs, 2)
+				}
+				if bs := s.head.block.Block().Slot(); bs != 2 {
+					t.Errorf("Unexpected head block slot. Got %d but wanted %d", bs, 2)
+				}
+			},
+		},
+		/*
+			{
+				name: "applies unfinalized block with state transition",
+				args: args{
+					block: genFullBlock(t, util.DefaultBlockGenConfig(), 2),
+				},
+				check: func(t *testing.T, s *Service) {
+					if hs := s.head.state.Slot(); hs != 2 {
+						t.Errorf("Unexpected state slot. Got %d but wanted %d", hs, 2)
+					}
+					if bs := s.head.block.Block().Slot(); bs != 2 {
+						t.Errorf("Unexpected head block slot. Got %d but wanted %d", bs, 2)
+					}
+				},
+			},
+		*/
+	}
+
+	wg := new(sync.WaitGroup)
+	for _, tt := range tests {
+		wg.Add(1)
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				wg.Done()
+			}()
+			genesisSt = genesisSt.Copy()
+			s, tr := minimalTestService(t,
+				WithFinalizedStateAtStartUp(genesisSt),
+				WithExitPool(voluntaryexits.NewPool()),
+				WithStateNotifier(&blockchainTesting.MockStateNotifier{RecordEvents: true}))
+
+			beaconDB := tr.db
+			genesisBlockRoot := bytesutil.ToBytes32(nil)
+			require.NoError(t, beaconDB.SaveState(ctx, genesisSt, genesisBlockRoot))
+			require.NoError(t, s.saveGenesisData(ctx, genesisSt))
+
+			if tt.args.block != nil {
+				util.SaveBlock(t, ctx, beaconDB, tt.args.block)
+
+				root, err := tt.args.block.HashTreeRoot()
+				require.NoError(t, err)
+
+				ss := &ethpb.StateSummary{
+					Slot: tt.args.block.Block.Slot,
+					Root: root[:],
+				}
+				require.NoError(t, beaconDB.SaveStateSummary(ctx, ss))
+				require.NoError(t, beaconDB.SaveHeadBlockRoot(ctx, root))
+			}
+
+			err := s.processUnfinalizedBlocksFromDB()
+			if tt.wantedErr != "" {
+				assert.ErrorContains(t, tt.wantedErr, err)
+			} else {
+				require.NoError(t, err)
+				tt.check(t, s)
 			}
 		})
 	}

@@ -691,8 +691,9 @@ func (s *Service) processUnfinalizedBlocksFromDB() error {
 		return nil
 	}
 
-	if startSlot, endSlot := s.head.block.Block().Slot(), headBlkDB.Block().Slot(); endSlot > startSlot {
-		unfinalizedBlks, err := loadBlocks(s.ctx, s.cfg.BeaconDB, startSlot.Add(1), endSlot)
+	finalizedSlot := s.head.block.Block().Slot()
+	if startSlot, endSlot := finalizedSlot+1, headBlkDB.Block().Slot(); startSlot <= endSlot {
+		unfinalizedBlks, err := loadBlocks(s.ctx, s.cfg.BeaconDB, startSlot, endSlot)
 		if err != nil {
 			return errors.Wrap(err, "could not get unfinalized blocks from db")
 		}
@@ -708,9 +709,14 @@ func (s *Service) processUnfinalizedBlocksFromDB() error {
 				return errors.Wrap(err, "could not get unfinalized block root")
 			}
 
+			// replay block
 			postState, err := s.cfg.StateGen.StateByRoot(s.ctx, blkRoot)
 			if err != nil {
 				return errors.Wrap(err, "could not get unfinalized block state")
+			}
+
+			if err := s.cfg.StateGen.SaveState(s.ctx, blkRoot, postState); err != nil {
+				return errors.Wrap(err, "could not save state")
 			}
 
 			if err := s.cfg.ForkChoiceStore.InsertNode(s.ctx, postState, blkRoot); err != nil {
@@ -766,7 +772,7 @@ func (s *Service) processUnfinalizedBlocksFromDB() error {
 	return nil
 }
 
-// loadBlocks loads the blocks between start slot and end slot and it fails if there's a block missing.
+// loadBlocks loads the blocks between start slot and end slot.
 func loadBlocks(ctx context.Context, beaconDB iface.HeadAccessDatabase, startSlot, endSlot primitives.Slot) ([]interfaces.ReadOnlySignedBeaconBlock, error) {
 	// Nothing to load for invalid range.
 	if startSlot > endSlot {
@@ -780,10 +786,6 @@ func loadBlocks(ctx context.Context, beaconDB iface.HeadAccessDatabase, startSlo
 	// The retrieved blocks and block roots have to be in the same length given same filter.
 	if len(blocks) != len(blockRoots) {
 		return nil, fmt.Errorf("length of blocks(%d) and roots(%d) don't match", len(blocks), len(blockRoots))
-	}
-	// Length of retrieved blocks and slots must match
-	if rangeLen := endSlot - startSlot + 1; uint64(len(blocks)) != uint64(rangeLen) {
-		return nil, fmt.Errorf("length of blocks(%d) and slots(%d) don't match", len(blocks), rangeLen)
 	}
 
 	return blocks, nil

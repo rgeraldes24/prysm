@@ -2260,22 +2260,6 @@ func TestService_ProcessUnfinalizedBlocksFromDB(t *testing.T) {
 				}
 			},
 		},
-		/*
-			{
-				name: "applies unfinalized block with state transition",
-				args: args{
-					block: genFullBlock(t, util.DefaultBlockGenConfig(), 2),
-				},
-				check: func(t *testing.T, s *Service) {
-					if hs := s.head.state.Slot(); hs != 2 {
-						t.Errorf("Unexpected state slot. Got %d but wanted %d", hs, 2)
-					}
-					if bs := s.head.block.Block().Slot(); bs != 2 {
-						t.Errorf("Unexpected head block slot. Got %d but wanted %d", bs, 2)
-					}
-				},
-			},
-		*/
 	}
 
 	wg := new(sync.WaitGroup)
@@ -2297,13 +2281,12 @@ func TestService_ProcessUnfinalizedBlocksFromDB(t *testing.T) {
 			require.NoError(t, s.saveGenesisData(ctx, genesisSt))
 
 			if tt.args.block != nil {
-				util.SaveBlock(t, ctx, beaconDB, tt.args.block)
-
-				root, err := tt.args.block.HashTreeRoot()
+				wsb := util.SaveBlock(t, ctx, beaconDB, tt.args.block)
+				root, err := wsb.Block().HashTreeRoot()
 				require.NoError(t, err)
 
 				ss := &ethpb.StateSummary{
-					Slot: tt.args.block.Block.Slot,
+					Slot: wsb.Block().Slot(),
 					Root: root[:],
 				}
 				require.NoError(t, beaconDB.SaveStateSummary(ctx, ss))

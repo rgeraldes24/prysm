@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,12 +23,14 @@ import (
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/operations/slashings"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/operations/voluntaryexits"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/startup"
+	"github.com/prysmaticlabs/prysm/v4/beacon-chain/state"
 	state_native "github.com/prysmaticlabs/prysm/v4/beacon-chain/state/state-native"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/state/stategen"
 	"github.com/prysmaticlabs/prysm/v4/config/features"
 	"github.com/prysmaticlabs/prysm/v4/config/params"
 	consensusblocks "github.com/prysmaticlabs/prysm/v4/consensus-types/blocks"
 	"github.com/prysmaticlabs/prysm/v4/consensus-types/interfaces"
+	"github.com/prysmaticlabs/prysm/v4/consensus-types/primitives"
 	"github.com/prysmaticlabs/prysm/v4/container/trie"
 	"github.com/prysmaticlabs/prysm/v4/encoding/bytesutil"
 	ethpb "github.com/prysmaticlabs/prysm/v4/proto/prysm/v1alpha1"
@@ -36,6 +39,7 @@ import (
 	"github.com/prysmaticlabs/prysm/v4/testing/util"
 	"github.com/prysmaticlabs/prysm/v4/time/slots"
 	logTest "github.com/sirupsen/logrus/hooks/test"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func setupBeaconChain(t *testing.T, beaconDB db.Database) *Service {
@@ -255,161 +259,151 @@ func TestChainService_CorrectGenesisRoots(t *testing.T) {
 
 }
 
-func TestChainService_InitializeChainInfo_UnfinalizedHead(t *testing.T) {
-	genesis := util.NewBeaconBlock()
-	genesisRoot, err := genesis.Block.HashTreeRoot()
-	require.NoError(t, err)
+func TestChainService_InitializeChainInfo(t *testing.T) {
+	ctx := context.Background()
 
-	finalizedSlot := params.BeaconConfig().SlotsPerEpoch*2 + 1
-	finalizedBlock := util.NewBeaconBlock()
-	finalizedBlock.Block.Slot = finalizedSlot
-	finalizedBlock.Block.ParentRoot = bytesutil.PadTo(genesisRoot[:], 32)
-	finalizedState, err := util.NewBeaconState()
-	require.NoError(t, err)
-	require.NoError(t, finalizedState.SetSlot(finalizedSlot))
-	require.NoError(t, finalizedState.SetGenesisValidatorsRoot(params.BeaconConfig().ZeroHash[:]))
-	finalizedRoot, err := finalizedBlock.Block.HashTreeRoot()
-	require.NoError(t, err)
-
-	headSlot := finalizedSlot + 1
-	headBlock := util.NewBeaconBlock()
-	headBlock.Block.Slot = headSlot
-	headBlock.Block.ParentRoot = bytesutil.PadTo(finalizedRoot[:], 32)
-	headState, err := util.NewBeaconState()
-	require.NoError(t, err)
-	require.NoError(t, headState.SetSlot(headSlot))
-	require.NoError(t, headState.SetGenesisValidatorsRoot(params.BeaconConfig().ZeroHash[:]))
-	headRoot, err := headBlock.Block.HashTreeRoot()
-
-	c, tr := minimalTestService(t, WithFinalizedStateAtStartUp(finalizedState))
-	ctx, beaconDB, stateGen := tr.ctx, tr.db, tr.sg
-
-	require.NoError(t, beaconDB.SaveGenesisBlockRoot(ctx, genesisRoot))
-	util.SaveBlock(t, ctx, beaconDB, genesis)
-	require.NoError(t, beaconDB.SaveState(ctx, finalizedState, finalizedRoot))
-	require.NoError(t, beaconDB.SaveState(ctx, finalizedState, genesisRoot))
-	require.NoError(t, beaconDB.SaveState(ctx, headState, headRoot))
-	util.SaveBlock(t, ctx, beaconDB, finalizedBlock)
-	util.SaveBlock(t, ctx, beaconDB, headBlock)
-	require.NoError(t, beaconDB.SaveFinalizedCheckpoint(ctx, &ethpb.Checkpoint{Epoch: slots.ToEpoch(finalizedSlot), Root: finalizedRoot[:]}))
-	require.NoError(t, stateGen.SaveState(ctx, finalizedRoot, finalizedState))
-	require.NoError(t, stateGen.SaveState(ctx, headRoot, headState))
-	require.NoError(t, beaconDB.SaveHeadBlockRoot(ctx, headRoot))
-
-	require.NoError(t, c.StartFromSavedState(finalizedState))
-	headBlk, err := c.HeadBlock(ctx)
-	require.NoError(t, err)
-	pb, err := headBlk.Proto()
-	require.NoError(t, err)
-	assert.DeepEqual(t, headBlock, pb, "Head block incorrect")
-	s, err := c.HeadState(ctx)
-	require.NoError(t, err)
-	assert.DeepSSZEqual(t, headState.ToProtoUnsafe(), s.ToProtoUnsafe(), "Head state incorrect")
-	assert.Equal(t, c.HeadSlot(), headBlk.Block().Slot(), "Head slot incorrect")
-	r, err := c.HeadRoot(context.Background())
-	require.NoError(t, err)
-	if !bytes.Equal(headRoot[:], r) {
-		t.Error("head slot incorrect")
+	genesisState, keys := util.DeterministicGenesisState(t, 64)
+	copiedGenSt := genesisState.Copy()
+	genFullBlock := func(t *testing.T, conf *util.BlockGenConfig, slot primitives.Slot) *ethpb.SignedBeaconBlock {
+		blk, err := util.GenerateFullBlock(copiedGenSt.Copy(), keys, conf, slot)
+		require.NoError(t, err)
+		return blk
 	}
-	assert.Equal(t, genesisRoot, c.originBlockRoot, "Genesis block root incorrect")
-}
 
-func TestChainService_InitializeChainInfo_FinalizedHead(t *testing.T) {
-	genesis := util.NewBeaconBlock()
-	genesisRoot, err := genesis.Block.HashTreeRoot()
-	require.NoError(t, err)
-
-	finalizedSlot := params.BeaconConfig().SlotsPerEpoch*2 + 1
-	finalizedBlock := util.NewBeaconBlock()
-	finalizedBlock.Block.Slot = finalizedSlot
-	finalizedBlock.Block.ParentRoot = bytesutil.PadTo(genesisRoot[:], 32)
-	finalizedState, err := util.NewBeaconState()
-	require.NoError(t, err)
-	require.NoError(t, finalizedState.SetSlot(finalizedSlot))
-	require.NoError(t, finalizedState.SetGenesisValidatorsRoot(params.BeaconConfig().ZeroHash[:]))
-	finalizedRoot, err := finalizedBlock.Block.HashTreeRoot()
-	require.NoError(t, err)
-
-	headSlot := finalizedSlot + 1
-	headBlock := util.NewBeaconBlock()
-	headBlock.Block.Slot = headSlot
-	headBlock.Block.ParentRoot = bytesutil.PadTo(finalizedRoot[:], 32)
-	headRoot, err := headBlock.Block.HashTreeRoot()
-
-	c, tr := minimalTestService(t, WithFinalizedStateAtStartUp(finalizedState), WithFinalizedHeadAtStartup())
-	ctx, beaconDB, stateGen := tr.ctx, tr.db, tr.sg
-
-	require.NoError(t, beaconDB.SaveGenesisBlockRoot(ctx, genesisRoot))
-	util.SaveBlock(t, ctx, beaconDB, genesis)
-	require.NoError(t, beaconDB.SaveState(ctx, finalizedState, finalizedRoot))
-	require.NoError(t, beaconDB.SaveState(ctx, finalizedState, genesisRoot))
-	util.SaveBlock(t, ctx, beaconDB, finalizedBlock)
-	util.SaveBlock(t, ctx, beaconDB, headBlock)
-	require.NoError(t, beaconDB.SaveFinalizedCheckpoint(ctx, &ethpb.Checkpoint{Epoch: slots.ToEpoch(finalizedSlot), Root: finalizedRoot[:]}))
-	require.NoError(t, stateGen.SaveState(ctx, finalizedRoot, finalizedState))
-	require.NoError(t, beaconDB.SaveHeadBlockRoot(ctx, headRoot))
-
-	require.NoError(t, c.StartFromSavedState(finalizedState))
-	headBlk, err := c.HeadBlock(ctx)
-	require.NoError(t, err)
-	pb, err := headBlk.Proto()
-	require.NoError(t, err)
-	assert.DeepEqual(t, finalizedBlock, pb, "Head block incorrect")
-	s, err := c.HeadState(ctx)
-	require.NoError(t, err)
-	assert.DeepSSZEqual(t, finalizedState.ToProtoUnsafe(), s.ToProtoUnsafe(), "Head state incorrect")
-	assert.Equal(t, c.HeadSlot(), finalizedBlock.Block.Slot, "Head slot incorrect")
-	r, err := c.HeadRoot(context.Background())
-	require.NoError(t, err)
-	if !bytes.Equal(finalizedRoot[:], r) {
-		t.Error("head slot incorrect")
+	type args struct {
+		unfinalizedBlock             *ethpb.SignedBeaconBlock
+		startFromFinalizedCheckpoint bool
 	}
-	assert.Equal(t, genesisRoot, c.originBlockRoot, "Genesis block root incorrect")
-}
 
-func TestChainService_InitializeChainInfo_FinalizedHead_NoUnfinalizedBlocks(t *testing.T) {
-	genesis := util.NewBeaconBlock()
-	genesisRoot, err := genesis.Block.HashTreeRoot()
-	require.NoError(t, err)
-
-	finalizedSlot := params.BeaconConfig().SlotsPerEpoch*2 + 1
-	finalizedBlock := util.NewBeaconBlock()
-	finalizedBlock.Block.Slot = finalizedSlot
-	finalizedBlock.Block.ParentRoot = bytesutil.PadTo(genesisRoot[:], 32)
-	finalizedState, err := util.NewBeaconState()
-	require.NoError(t, err)
-	require.NoError(t, finalizedState.SetSlot(finalizedSlot))
-	require.NoError(t, finalizedState.SetGenesisValidatorsRoot(params.BeaconConfig().ZeroHash[:]))
-	finalizedRoot, err := finalizedBlock.Block.HashTreeRoot()
-	require.NoError(t, err)
-
-	c, tr := minimalTestService(t, WithFinalizedStateAtStartUp(finalizedState))
-	ctx, beaconDB, stateGen := tr.ctx, tr.db, tr.sg
-
-	require.NoError(t, beaconDB.SaveGenesisBlockRoot(ctx, genesisRoot))
-	util.SaveBlock(t, ctx, beaconDB, genesis)
-	require.NoError(t, beaconDB.SaveState(ctx, finalizedState, finalizedRoot))
-	require.NoError(t, beaconDB.SaveState(ctx, finalizedState, genesisRoot))
-	util.SaveBlock(t, ctx, beaconDB, finalizedBlock)
-	require.NoError(t, beaconDB.SaveFinalizedCheckpoint(ctx, &ethpb.Checkpoint{Epoch: slots.ToEpoch(finalizedSlot), Root: finalizedRoot[:]}))
-	require.NoError(t, stateGen.SaveState(ctx, finalizedRoot, finalizedState))
-
-	require.NoError(t, c.StartFromSavedState(finalizedState))
-	headBlk, err := c.HeadBlock(ctx)
-	require.NoError(t, err)
-	pb, err := headBlk.Proto()
-	require.NoError(t, err)
-	assert.DeepEqual(t, finalizedBlock, pb, "Head block incorrect")
-	s, err := c.HeadState(ctx)
-	require.NoError(t, err)
-	assert.DeepSSZEqual(t, finalizedState.ToProtoUnsafe(), s.ToProtoUnsafe(), "Head state incorrect")
-	assert.Equal(t, c.HeadSlot(), finalizedBlock.Block.Slot, "Head slot incorrect")
-	r, err := c.HeadRoot(context.Background())
-	require.NoError(t, err)
-	if !bytes.Equal(finalizedRoot[:], r) {
-		t.Error("head slot incorrect")
+	tests := []struct {
+		name      string
+		args      args
+		wantedErr string
+	}{
+		{
+			name: "no unfinalized blocks + start from finalized checkpoint option enabled > finalized head",
+			args: args{
+				startFromFinalizedCheckpoint: true,
+			},
+		},
+		{
+			name: "db has unfinalized blocks + start from finalized checkpoint option enabled > finalized head",
+			args: args{
+				startFromFinalizedCheckpoint: true,
+				unfinalizedBlock:             genFullBlock(t, util.DefaultBlockGenConfig(), 1),
+			},
+		},
+		{
+			name: "no unfinalized blocks + start from unfinalized head (default) > finalized head",
+			args: args{
+				startFromFinalizedCheckpoint: false,
+			},
+		},
+		{
+			name: "db has unfinalized blocks + start from unfinalized head (default) > unfinalized head",
+			args: args{
+				startFromFinalizedCheckpoint: false,
+				unfinalizedBlock:             genFullBlock(t, util.DefaultBlockGenConfig(), 1),
+			},
+		},
 	}
-	assert.Equal(t, genesisRoot, c.originBlockRoot, "Genesis block root incorrect")
+
+	wg := new(sync.WaitGroup)
+	for _, tt := range tests {
+		wg.Add(1)
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				wg.Done()
+			}()
+			genesisState = genesisState.Copy()
+
+			opts := []Option{
+				WithFinalizedStateAtStartUp(genesisState),
+			}
+
+			if tt.args.startFromFinalizedCheckpoint {
+				opts = append(opts, WithFinalizedHeadAtStartup())
+			}
+
+			svc, tr := minimalTestService(t, opts...)
+
+			beaconDB := tr.db
+			genesisBlockRoot := bytesutil.ToBytes32(nil)
+			require.NoError(t, beaconDB.SaveState(ctx, genesisState, genesisBlockRoot))
+			require.NoError(t, svc.saveGenesisData(ctx, genesisState))
+
+			var unfinalizedBlock interfaces.SignedBeaconBlock
+			var unfinalizedRoot [32]byte
+			if tt.args.unfinalizedBlock != nil {
+				var err error
+				unfinalizedBlock = util.SaveBlock(t, ctx, beaconDB, tt.args.unfinalizedBlock)
+				unfinalizedRoot, err = unfinalizedBlock.Block().HashTreeRoot()
+				require.NoError(t, err)
+
+				ss := &ethpb.StateSummary{
+					Slot: unfinalizedBlock.Block().Slot(),
+					Root: unfinalizedRoot[:],
+				}
+				require.NoError(t, beaconDB.SaveStateSummary(ctx, ss))
+				require.NoError(t, beaconDB.SaveHeadBlockRoot(ctx, unfinalizedRoot))
+			}
+
+			err := svc.StartFromSavedState(genesisState)
+			if tt.wantedErr != "" {
+				assert.ErrorContains(t, tt.wantedErr, err)
+			} else {
+				require.NoError(t, err)
+
+				genBlock, err := beaconDB.GenesisBlock(ctx)
+				require.NoError(t, err)
+
+				genRoot, err := genBlock.Block().HashTreeRoot()
+				require.NoError(t, err)
+
+				var (
+					expectedHeadBlk protoreflect.ProtoMessage
+					expectedState   state.BeaconState
+					expectedRoot    []byte
+				)
+
+				if svc.cfg.StartFromFinalizedCheckpoint || tt.args.unfinalizedBlock == nil {
+					var err error
+					expectedHeadBlk, err = genBlock.Proto()
+					require.NoError(t, err)
+					expectedState = genesisState
+					expectedRoot = genRoot[:]
+				} else {
+					var err error
+					expectedHeadBlk, err = unfinalizedBlock.Proto()
+					expectedRoot = unfinalizedRoot[:]
+					st, err := svc.cfg.StateGen.StateByRoot(ctx, unfinalizedRoot)
+					require.NoError(t, err)
+					expectedState = st
+				}
+
+				headBlk, err := svc.HeadBlock(ctx)
+				require.NoError(t, err)
+				pb, err := headBlk.Proto()
+				require.NoError(t, err)
+				assert.DeepEqual(t, expectedHeadBlk, pb, "Head block incorrect")
+
+				s, err := svc.HeadState(ctx)
+				require.NoError(t, err)
+				assert.DeepSSZEqual(t, expectedState.ToProtoUnsafe(), s.ToProtoUnsafe(), "Head state incorrect")
+
+				assert.Equal(t, svc.HeadSlot(), headBlk.Block().Slot(), "Head slot incorrect")
+
+				r, err := svc.HeadRoot(context.Background())
+				require.NoError(t, err)
+				if !bytes.Equal(expectedRoot, r) {
+					t.Error("head slot incorrect")
+				}
+
+				assert.Equal(t, genRoot, svc.originBlockRoot, "Genesis block root incorrect")
+			}
+		})
+	}
+	wg.Wait()
 }
 
 func TestChainService_InitializeChainInfo_SetHeadAtGenesis(t *testing.T) {

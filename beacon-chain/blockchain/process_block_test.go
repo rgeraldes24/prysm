@@ -2202,8 +2202,8 @@ func TestLoadBlocks(t *testing.T) {
 func TestService_ProcessUnfinalizedBlocksFromDB(t *testing.T) {
 	ctx := context.Background()
 
-	genesisSt, keys := util.DeterministicGenesisState(t, 64)
-	copiedGenSt := genesisSt.Copy()
+	genesisState, keys := util.DeterministicGenesisState(t, 64)
+	copiedGenSt := genesisState.Copy()
 	genFullBlock := func(t *testing.T, conf *util.BlockGenConfig, slot primitives.Slot) *ethpb.SignedBeaconBlock {
 		blk, err := util.GenerateFullBlock(copiedGenSt.Copy(), keys, conf, slot)
 		require.NoError(t, err)
@@ -2269,16 +2269,16 @@ func TestService_ProcessUnfinalizedBlocksFromDB(t *testing.T) {
 			defer func() {
 				wg.Done()
 			}()
-			genesisSt = genesisSt.Copy()
-			s, tr := minimalTestService(t,
-				WithFinalizedStateAtStartUp(genesisSt),
+			genesisState = genesisState.Copy()
+			svc, tr := minimalTestService(t,
+				WithFinalizedStateAtStartUp(genesisState),
 				WithExitPool(voluntaryexits.NewPool()),
 				WithStateNotifier(&blockchainTesting.MockStateNotifier{RecordEvents: true}))
 
 			beaconDB := tr.db
 			genesisBlockRoot := bytesutil.ToBytes32(nil)
-			require.NoError(t, beaconDB.SaveState(ctx, genesisSt, genesisBlockRoot))
-			require.NoError(t, s.saveGenesisData(ctx, genesisSt))
+			require.NoError(t, beaconDB.SaveState(ctx, genesisState, genesisBlockRoot))
+			require.NoError(t, svc.saveGenesisData(ctx, genesisState))
 
 			if tt.args.block != nil {
 				wsb := util.SaveBlock(t, ctx, beaconDB, tt.args.block)
@@ -2293,12 +2293,12 @@ func TestService_ProcessUnfinalizedBlocksFromDB(t *testing.T) {
 				require.NoError(t, beaconDB.SaveHeadBlockRoot(ctx, root))
 			}
 
-			err := s.processUnfinalizedBlocksFromDB()
+			err := svc.processUnfinalizedBlocksFromDB()
 			if tt.wantedErr != "" {
 				assert.ErrorContains(t, tt.wantedErr, err)
 			} else {
 				require.NoError(t, err)
-				tt.check(t, s)
+				tt.check(t, svc)
 			}
 		})
 	}

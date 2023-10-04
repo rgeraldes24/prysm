@@ -31,3 +31,11 @@ func TestEndToEnd_ScenarioRun_EEOffline(t *testing.T) {
 	runner.config.EvalInterceptor = runner.eeOffline
 	runner.scenarioRunner()
 }
+
+func TestEndToEnd_ScenarioRun_AllNodesOffline(t *testing.T) {
+	runner := e2eMinimal(t, version.Phase0, types.WithEpochs(20))
+
+	runner.config.Evaluators = scenarioEvals()
+	runner.config.EvalInterceptor = runner.allNodesOffline
+	runner.scenarioRunner()
+}

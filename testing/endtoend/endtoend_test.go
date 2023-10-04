@@ -763,6 +763,30 @@ func (r *testRunner) multiScenario(ec *e2etypes.EvaluationContext, epoch uint64,
 	return false
 }
 
+func (r *testRunner) allNodesOffline(ec *e2etypes.EvaluationContext, epoch uint64, conns []*grpc.ClientConn) bool {
+	switch epoch {
+	case 11:
+		require.NoError(r.t, r.comHandler.beaconNodes.Pause())
+		require.NoError(r.t, r.comHandler.validatorNodes.Pause())
+		return true
+	case 12:
+		require.NoError(r.t, r.comHandler.beaconNodes.Resume())
+		require.NoError(r.t, r.comHandler.validatorNodes.Resume())
+		return true
+	case 16:
+		require.NoError(r.t, r.comHandler.beaconNodes.Pause())
+		require.NoError(r.t, r.comHandler.validatorNodes.Pause())
+		return true
+	case 17:
+		require.NoError(r.t, r.comHandler.beaconNodes.Resume())
+		require.NoError(r.t, r.comHandler.validatorNodes.Resume())
+		return true
+	case 13, 14, 18, 19:
+		return true
+	}
+	return false
+}
+
 // All Epochs are valid.
 func defaultInterceptor(_ *e2etypes.EvaluationContext, _ uint64, _ []*grpc.ClientConn) bool {
 	return false

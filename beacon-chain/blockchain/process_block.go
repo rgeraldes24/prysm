@@ -15,7 +15,6 @@ import (
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/core/transition"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/db"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/db/filters"
-	"github.com/prysmaticlabs/prysm/v4/beacon-chain/db/iface"
 	forkchoicetypes "github.com/prysmaticlabs/prysm/v4/beacon-chain/forkchoice/types"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/state"
 	"github.com/prysmaticlabs/prysm/v4/config/features"
@@ -788,7 +787,7 @@ func (s *Service) processUnfinalizedBlocksFromDB() error {
 }
 
 // loadBlocks loads the blocks between start slot and end slot.
-func loadBlocks(ctx context.Context, beaconDB iface.HeadAccessDatabase, startSlot, endSlot primitives.Slot) ([]interfaces.ReadOnlySignedBeaconBlock, error) {
+func loadBlocks(ctx context.Context, beaconDB db.NoHeadAccessDatabase, startSlot, endSlot primitives.Slot) ([]interfaces.ReadOnlySignedBeaconBlock, error) {
 	// Nothing to load for invalid range.
 	if startSlot > endSlot {
 		return nil, fmt.Errorf("start slot %d > end slot %d", startSlot, endSlot)

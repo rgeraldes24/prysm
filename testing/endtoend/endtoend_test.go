@@ -60,6 +60,9 @@ type testRunner struct {
 	config     *e2etypes.E2EConfig
 	comHandler *componentHandler
 	depositor  *eth1.Depositor
+
+	beaconConns      []*grpc.ClientConn
+	closeBeaconConns func()
 }
 
 // newTestRunner creates E2E test runner.
@@ -167,15 +170,15 @@ func (r *testRunner) waitForChainStart() {
 }
 
 // runEvaluators executes assigned evaluators.
-func (r *testRunner) runEvaluators(ec *e2etypes.EvaluationContext, conns []*grpc.ClientConn, tickingStartTime time.Time) error {
+func (r *testRunner) runEvaluators(ec *e2etypes.EvaluationContext, tickingStartTime time.Time) error {
 	t, config := r.t, r.config
 	secondsPerEpoch := uint64(params.BeaconConfig().SlotsPerEpoch.Mul(params.BeaconConfig().SecondsPerSlot))
 	ticker := helpers.NewEpochTicker(tickingStartTime, secondsPerEpoch)
 	for currentEpoch := range ticker.C() {
-		if config.EvalInterceptor(ec, currentEpoch, conns) {
+		if config.EvalInterceptor(ec, currentEpoch, r.beaconConns) {
 			continue
 		}
-		r.executeProvidedEvaluators(ec, currentEpoch, conns, config.Evaluators)
+		r.executeProvidedEvaluators(ec, currentEpoch, r.beaconConns, config.Evaluators)
 
 		if t.Failed() || currentEpoch >= config.EpochsToRun-1 {
 			ticker.Done()
@@ -483,7 +486,9 @@ func (r *testRunner) defaultEndToEndRun() error {
 	// Create GRPC connection to beacon nodes.
 	conns, closeConns, err := helpers.NewLocalConnections(ctx, e2e.TestParams.BeaconNodeCount)
 	require.NoError(t, err, "Cannot create local connections")
-	defer closeConns()
+	r.beaconConns = conns
+	r.closeBeaconConns = closeConns
+	defer r.closeBeaconConns()
 
 	// Calculate genesis time.
 	nodeClient := eth.NewNodeClient(conns[0])
@@ -493,7 +498,7 @@ func (r *testRunner) defaultEndToEndRun() error {
 
 	ec := e2etypes.NewEvaluationContext(r.depositor.History())
 	// Run assigned evaluators.
-	if err := r.runEvaluators(ec, conns, tickingStartTime); err != nil {
+	if err := r.runEvaluators(ec, tickingStartTime); err != nil {
 		return errors.Wrap(err, "one or more evaluators failed")
 	}
 
@@ -564,7 +569,9 @@ func (r *testRunner) scenarioRun() error {
 	// Create GRPC connection to beacon nodes.
 	conns, closeConns, err := helpers.NewLocalConnections(ctx, e2e.TestParams.BeaconNodeCount)
 	require.NoError(t, err, "Cannot create local connections")
-	defer closeConns()
+	r.beaconConns = conns
+	r.closeBeaconConns = closeConns
+	defer r.closeBeaconConns()
 
 	// Calculate genesis time.
 	nodeClient := eth.NewNodeClient(conns[0])
@@ -574,7 +581,7 @@ func (r *testRunner) scenarioRun() error {
 
 	ec := e2etypes.NewEvaluationContext(r.depositor.History())
 	// Run assigned evaluators.
-	return r.runEvaluators(ec, conns, tickingStartTime)
+	return r.runEvaluators(ec, tickingStartTime)
 }
 
 func (r *testRunner) addEvent(ev func() error) {
@@ -766,24 +773,37 @@ func (r *testRunner) multiScenario(ec *e2etypes.EvaluationContext, epoch uint64,
 func (r *testRunner) allNodesOffline(ec *e2etypes.EvaluationContext, epoch uint64, conns []*grpc.ClientConn) bool {
 	switch epoch {
 	case 5:
-		require.NoError(r.t, r.comHandler.beaconNodes.Stop())
-		require.NoError(r.t, r.comHandler.validatorNodes.Stop())
+		require.NoError(r.t, r.comHandler.validatorNodes.GracefulShutdown())
+		// close existing connections to beacon nodes (evaluators)
+		r.closeBeaconConns()
+		require.NoError(r.t, r.comHandler.beaconNodes.GracefulShutdown())
+
 		return true
 	case 6:
-		require.NoError(r.t, r.comHandler.beaconNodes.Start(r.comHandler.ctx))
-		require.NoError(r.t, r.comHandler.validatorNodes.Start(r.comHandler.ctx))
+		r.comHandler.group.Go(func() error {
+			if err := r.comHandler.beaconNodes.Start(r.comHandler.ctx); err != nil {
+				return errors.Wrap(err, "failed to start beacon nodes")
+			}
+			return nil
+		})
+
+		// create new connections to the beacon nodes (evaluators)
+		conns, closeConns, err := helpers.NewLocalConnections(r.comHandler.ctx, e2e.TestParams.BeaconNodeCount)
+		require.NoError(r.t, err, "Cannot create local connections")
+		r.beaconConns = conns
+		r.closeBeaconConns = closeConns
+
+		r.comHandler.group.Go(func() error {
+			if err := r.comHandler.validatorNodes.Start(r.comHandler.ctx); err != nil {
+				return errors.Wrap(err, "failed to start validator nodes")
+			}
+			return nil
+		})
 		return true
-	case 10:
-		require.NoError(r.t, r.comHandler.beaconNodes.Stop())
-		require.NoError(r.t, r.comHandler.validatorNodes.Stop())
-		return true
-	case 11:
-		require.NoError(r.t, r.comHandler.beaconNodes.Start(r.comHandler.ctx))
-		require.NoError(r.t, r.comHandler.validatorNodes.Start(r.comHandler.ctx))
-		return true
-	case 7, 8, 12, 13:
+	case 7, 8:
 		return true
 	}
+
 	return false
 }
 

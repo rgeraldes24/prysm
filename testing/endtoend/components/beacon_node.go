@@ -340,6 +340,11 @@ func (node *BeaconNode) Resume() error {
 	return node.cmd.Process.Signal(syscall.SIGCONT)
 }
 
+// GracefulShutdown shuts down the component safely.
+func (node *BeaconNode) GracefulShutdown() error {
+	return node.cmd.Process.Signal(syscall.SIGINT)
+}
+
 // Stop stops the component and its underlying process.
 func (node *BeaconNode) Stop() error {
 	return node.cmd.Process.Kill()

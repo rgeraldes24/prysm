@@ -39,6 +39,10 @@ func (*EmptyComponent) Resume() error {
 	return nil
 }
 
+func (*EmptyComponent) GracefulShutdown() error {
+	return nil
+}
+
 func (*EmptyComponent) Stop() error {
 	return nil
 }

@@ -71,6 +71,11 @@ func (ts *TracingSink) Resume() error {
 	return nil
 }
 
+// GracefulShutdown shuts down the component safely.
+func (ts *TracingSink) GracefulShutdown() error {
+	return nil
+}
+
 // Stop stops the component and its underlying process.
 func (ts *TracingSink) Stop() error {
 	ts.cancel()

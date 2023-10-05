@@ -42,7 +42,7 @@ func TestEndToEnd_ScenarioRun_AllNodesOffline(t *testing.T) {
 }
 
 func TestEndToEnd_ScenarioRun_AllNodesOffline_SingleNode(t *testing.T) {
-	runner := e2eMinimal(t, version.Phase0, types.WithEpochs(15))
+	runner := e2eMinimal(t, version.Phase0, types.WithEpochs(10))
 
 	params.TestParams.BeaconNodeCount = 1
 

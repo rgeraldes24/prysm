@@ -92,6 +92,12 @@ func (node *BootNode) Resume() error {
 	return node.cmd.Process.Signal(syscall.SIGCONT)
 }
 
+// GracefulShutdown shuts down the component safely.
+func (node *BootNode) GracefulShutdown() error {
+	// no-op
+	return nil
+}
+
 // Stop stops the component and its underlying process.
 func (node *BootNode) Stop() error {
 	return node.cmd.Process.Kill()

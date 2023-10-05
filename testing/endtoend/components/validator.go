@@ -325,6 +325,11 @@ func (v *ValidatorNode) Resume() error {
 	return v.cmd.Process.Signal(syscall.SIGCONT)
 }
 
+// GracefulShutdown shuts down the component safely.
+func (v *ValidatorNode) GracefulShutdown() error {
+	return v.cmd.Process.Signal(syscall.SIGTERM)
+}
+
 // Stop stops the component and its underlying process.
 func (v *ValidatorNode) Stop() error {
 	return v.cmd.Process.Kill()

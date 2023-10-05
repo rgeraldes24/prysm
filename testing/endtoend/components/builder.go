@@ -74,6 +74,12 @@ func (s *BuilderSet) Resume() error {
 	return nil
 }
 
+// GracefulShutdown shuts down the component safely.
+func (s *BuilderSet) GracefulShutdown() error {
+	// no-op
+	return nil
+}
+
 // Stop stops the component and its underlying process.
 func (s *BuilderSet) Stop() error {
 	for _, n := range s.builders {

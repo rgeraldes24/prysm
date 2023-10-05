@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/prysmaticlabs/prysm/v4/runtime/version"
+	"github.com/prysmaticlabs/prysm/v4/testing/endtoend/params"
 	"github.com/prysmaticlabs/prysm/v4/testing/endtoend/types"
 )
 
@@ -35,6 +36,15 @@ func TestEndToEnd_ScenarioRun_EEOffline(t *testing.T) {
 func TestEndToEnd_ScenarioRun_AllNodesOffline(t *testing.T) {
 	runner := e2eMinimal(t, version.Phase0, types.WithEpochs(15))
 
+	runner.config.Evaluators = scenarioEvals()
+	runner.config.EvalInterceptor = runner.allNodesOffline
+	runner.scenarioRunner()
+}
+
+func TestEndToEnd_ScenarioRun_AllNodesOffline_SingleNode(t *testing.T) {
+	runner := e2eMinimal(t, version.Phase0, types.WithEpochs(15))
+	runner.config.BeaconFlags = append(runner.config.BeaconFlags, "--min-sync-peers=0")
+	params.TestParams.BeaconNodeCount = 1
 	runner.config.Evaluators = scenarioEvals()
 	runner.config.EvalInterceptor = runner.allNodesOffline
 	runner.scenarioRunner()

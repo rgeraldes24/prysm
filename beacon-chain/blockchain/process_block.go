@@ -681,6 +681,8 @@ func (s *Service) handleInvalidExecutionError(ctx context.Context, err error, bl
 // to unfinalized blocks coming from the db at startup. The operations consist of:
 //  1. Apply fork choice to the unfinalized block
 //  2. Save latest head info
+//
+// Requires a lock on forkchoice.
 func (s *Service) processUnfinalizedBlocksFromDB() error {
 	startTime := time.Now()
 

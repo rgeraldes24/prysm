@@ -696,13 +696,13 @@ func (s *Service) processUnfinalizedBlocksFromDB() error {
 
 	finalizedSlot := s.head.block.Block().Slot()
 
-	fields := logrus.Fields{
-		"#blocks":       0,
-		"finalizedSlot": finalizedSlot,
-		"headSlot":      headBlkDB.Block().Slot(),
-	}
-
 	if startSlot, endSlot := finalizedSlot+1, headBlkDB.Block().Slot(); startSlot <= endSlot {
+		fields := logrus.Fields{
+			"#blocks":       0,
+			"finalizedSlot": finalizedSlot,
+			"headSlot":      headBlkDB.Block().Slot(),
+		}
+
 		unfinalizedBlks, err := loadBlocks(s.ctx, s.cfg.BeaconDB, startSlot, endSlot)
 		if err != nil {
 			return errors.Wrap(err, "could not get unfinalized blocks from db")
@@ -722,18 +722,28 @@ func (s *Service) processUnfinalizedBlocksFromDB() error {
 				return errors.Wrap(err, "could not get unfinalized block root")
 			}
 
-			preState, err := s.getBlockPreState(s.ctx, blkCopy.Block())
+			preState, err := s.cfg.StateGen.StateByRoot(s.ctx, blkCopy.Block().ParentRoot())
 			if err != nil {
-				return errors.Wrap(err, "could not get block's prestate")
+				return errors.Wrapf(err, "could not get pre state")
 			}
+			if preState == nil || preState.IsNil() {
+				return errors.Wrap(err, "nil pre state")
+			}
+
 			// Save current justified and finalized epochs for future use.
-			currStoreJustifiedEpoch := s.CurrentJustifiedCheckpt().Epoch
-			currStoreFinalizedEpoch := s.FinalizedCheckpt().Epoch
+			// cannot use the available funcs for these ops because they read lock
+			jcp := s.cfg.ForkChoiceStore.JustifiedCheckpoint()
+			currStoreJustifiedEpoch := jcp.Epoch
+			fcp := s.cfg.ForkChoiceStore.FinalizedCheckpoint()
+			currStoreFinalizedEpoch := fcp.Epoch
 
 			// replay block
 			postState, err := s.cfg.StateGen.StateByRoot(s.ctx, blkRoot)
 			if err != nil {
-				return errors.Wrap(err, "could not get unfinalized block state")
+				return errors.Wrapf(err, "could not get post state")
+			}
+			if postState == nil || postState.IsNil() {
+				return errors.Wrap(err, "nil post state")
 			}
 
 			if err := s.cfg.StateGen.SaveState(s.ctx, blkRoot, postState); err != nil {
@@ -805,14 +815,15 @@ func (s *Service) processUnfinalizedBlocksFromDB() error {
 				}()
 			}
 
+			fmt.Println("prune")
 			if err := s.prunePostBlockOperationPools(s.ctx, blkCopy, blkRoot); err != nil {
 				log.WithError(err).Error("Could not prune canonical objects from pool ")
 			}
 		}
-	}
 
-	fields["processingTime"] = time.Since(startTime)
-	log.WithFields(fields).Debug("Processed unfinalized blocks from DB")
+		fields["processingTime"] = time.Since(startTime)
+		log.WithFields(fields).Debug("Processed unfinalized blocks from DB")
+	}
 
 	return nil
 }

@@ -765,23 +765,23 @@ func (r *testRunner) multiScenario(ec *e2etypes.EvaluationContext, epoch uint64,
 
 func (r *testRunner) allNodesOffline(ec *e2etypes.EvaluationContext, epoch uint64, conns []*grpc.ClientConn) bool {
 	switch epoch {
+	case 5:
+		require.NoError(r.t, r.comHandler.beaconNodes.Pause())
+		require.NoError(r.t, r.comHandler.validatorNodes.Pause())
+		return true
+	case 6:
+		require.NoError(r.t, r.comHandler.beaconNodes.Resume())
+		require.NoError(r.t, r.comHandler.validatorNodes.Resume())
+		return true
+	case 10:
+		require.NoError(r.t, r.comHandler.beaconNodes.Pause())
+		require.NoError(r.t, r.comHandler.validatorNodes.Pause())
+		return true
 	case 11:
-		require.NoError(r.t, r.comHandler.beaconNodes.Pause())
-		require.NoError(r.t, r.comHandler.validatorNodes.Pause())
-		return true
-	case 12:
 		require.NoError(r.t, r.comHandler.beaconNodes.Resume())
 		require.NoError(r.t, r.comHandler.validatorNodes.Resume())
 		return true
-	case 16:
-		require.NoError(r.t, r.comHandler.beaconNodes.Pause())
-		require.NoError(r.t, r.comHandler.validatorNodes.Pause())
-		return true
-	case 17:
-		require.NoError(r.t, r.comHandler.beaconNodes.Resume())
-		require.NoError(r.t, r.comHandler.validatorNodes.Resume())
-		return true
-	case 13, 14, 18, 19:
+	case 7, 8, 12, 13:
 		return true
 	}
 	return false

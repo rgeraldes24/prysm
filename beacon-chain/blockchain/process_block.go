@@ -720,6 +720,14 @@ func (s *Service) processUnfinalizedBlocksFromDB() error {
 				return errors.Wrap(err, "could not get unfinalized block root")
 			}
 
+			preState, err := s.getBlockPreState(s.ctx, blkCopy.Block())
+			if err != nil {
+				return errors.Wrap(err, "could not get block's prestate")
+			}
+			// Save current justified and finalized epochs for future use.
+			currStoreJustifiedEpoch := s.CurrentJustifiedCheckpt().Epoch
+			currStoreFinalizedEpoch := s.FinalizedCheckpt().Epoch
+
 			// replay block
 			postState, err := s.cfg.StateGen.StateByRoot(s.ctx, blkRoot)
 			if err != nil {
@@ -749,7 +757,7 @@ func (s *Service) processUnfinalizedBlocksFromDB() error {
 				log.WithError(err).Warn("Could not update head")
 			}
 
-			// new beacon chain head
+			// new head
 			if blkRoot == headRoot {
 				if err := s.saveHead(s.ctx, blkRoot, blkCopy, postState); err != nil {
 					return errors.Wrap(err, "could not notify forkchoice update")
@@ -777,6 +785,27 @@ func (s *Service) processUnfinalizedBlocksFromDB() error {
 				}
 			}
 
+			if err := s.updateJustificationOnBlock(s.ctx, preState, postState, currStoreJustifiedEpoch); err != nil {
+				return errors.Wrap(err, "could not update justified checkpoint")
+			}
+
+			newFinalized, err := s.updateFinalizationOnBlock(s.ctx, preState, postState, currStoreFinalizedEpoch)
+			if err != nil {
+				return errors.Wrap(err, "could not update finalized checkpoint")
+			}
+
+			if newFinalized {
+				finalized := s.cfg.ForkChoiceStore.FinalizedCheckpoint()
+				depCtx, cancel := context.WithTimeout(context.Background(), depositDeadline)
+				go func() {
+					s.insertFinalizedDeposits(depCtx, finalized.Root)
+					cancel()
+				}()
+			}
+
+			if err := s.prunePostBlockOperationPools(s.ctx, blkCopy, blkRoot); err != nil {
+				log.WithError(err).Error("Could not prune canonical objects from pool ")
+			}
 		}
 	}
 

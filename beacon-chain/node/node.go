@@ -638,8 +638,8 @@ func (b *BeaconNode) registerBlockchainService(fc forkchoice.ForkChoicer, gs *st
 		blockchain.WithClockSynchronizer(gs),
 	)
 
-	if features.Get().StartFromFinalizedCheckpoint {
-		opts = append(opts, blockchain.WithFinalizedHeadAtStartup())
+	if features.Get().EnableStartUnfinalized || features.Get().EnableCrashRecovery {
+		opts = append(opts, blockchain.WithUnfinalizedHead())
 	}
 
 	blockchainService, err := blockchain.NewService(b.ctx, opts...)
@@ -728,13 +728,14 @@ func (b *BeaconNode) registerInitialSyncService(complete chan struct{}) error {
 	}
 
 	is := initialsync.NewService(b.ctx, &initialsync.Config{
-		DB:                  b.db,
-		Chain:               chainService,
-		P2P:                 b.fetchP2P(),
-		StateNotifier:       b,
-		BlockNotifier:       b,
-		ClockWaiter:         b.clockWaiter,
-		InitialSyncComplete: complete,
+		DB:                   b.db,
+		Chain:                chainService,
+		P2P:                  b.fetchP2P(),
+		StateNotifier:        b,
+		BlockNotifier:        b,
+		ClockWaiter:          b.clockWaiter,
+		InitialSyncComplete:  complete,
+		CrashRecoveryEnabled: features.Get().EnableCrashRecovery,
 	})
 	return b.services.RegisterService(is)
 }

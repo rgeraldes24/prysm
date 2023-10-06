@@ -271,8 +271,8 @@ func TestChainService_InitializeChainInfo(t *testing.T) {
 	}
 
 	type args struct {
-		unfinalizedBlock             *ethpb.SignedBeaconBlock
-		startFromFinalizedCheckpoint bool
+		unfinalizedBlock        *ethpb.SignedBeaconBlock
+		unfinalizedStartEnabled bool
 	}
 
 	tests := []struct {
@@ -282,28 +282,25 @@ func TestChainService_InitializeChainInfo(t *testing.T) {
 	}{
 		{
 			name: "no unfinalized blocks + start from finalized checkpoint option enabled > finalized head",
-			args: args{
-				startFromFinalizedCheckpoint: true,
-			},
+			args: args{},
 		},
 		{
 			name: "db has unfinalized blocks + start from finalized checkpoint option enabled > finalized head",
 			args: args{
-				startFromFinalizedCheckpoint: true,
-				unfinalizedBlock:             genFullBlock(t, util.DefaultBlockGenConfig(), 1),
+				unfinalizedBlock: genFullBlock(t, util.DefaultBlockGenConfig(), 1),
 			},
 		},
 		{
 			name: "no unfinalized blocks + start from unfinalized head (default) > finalized head",
 			args: args{
-				startFromFinalizedCheckpoint: false,
+				unfinalizedStartEnabled: true,
 			},
 		},
 		{
 			name: "db has unfinalized blocks + start from unfinalized head (default) > unfinalized head",
 			args: args{
-				startFromFinalizedCheckpoint: false,
-				unfinalizedBlock:             genFullBlock(t, util.DefaultBlockGenConfig(), 1),
+				unfinalizedStartEnabled: true,
+				unfinalizedBlock:        genFullBlock(t, util.DefaultBlockGenConfig(), 1),
 			},
 		},
 	}
@@ -321,8 +318,8 @@ func TestChainService_InitializeChainInfo(t *testing.T) {
 				WithFinalizedStateAtStartUp(genesisState),
 			}
 
-			if tt.args.startFromFinalizedCheckpoint {
-				opts = append(opts, WithFinalizedHeadAtStartup())
+			if tt.args.unfinalizedStartEnabled {
+				opts = append(opts, WithUnfinalizedStart())
 			}
 
 			svc, tr := minimalTestService(t, opts...)

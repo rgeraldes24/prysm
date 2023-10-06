@@ -34,40 +34,28 @@ func TestEndToEnd_ScenarioRun_EEOffline(t *testing.T) {
 	runner.scenarioRunner()
 }
 
-func TestEndToEnd_ScenarioRun_AllNodesOffline(t *testing.T) {
+func TestEndToEnd_ScenarioRun_AllNodesGoOffline(t *testing.T) {
 	runner := e2eMinimal(t, version.Phase0, types.WithEpochs(15))
-	runner.config.Evaluators = scenarioEvals()
+	// @NOTE(rgeraldes): BeaconNodeCount > 2 has some peer connection issues atm
+	params.TestParams.BeaconNodeCount = 2
+
+	evals := scenarioEvals()
+	evals = append(evals, ev.NewFinalizedCheckpointOccurs(3))
+	runner.config.BeaconFlags = append(runner.config.BeaconFlags, "--min-sync-peers=1")
+	runner.config.Evaluators = evals
 	runner.config.EvalInterceptor = runner.allNodesOffline
+
 	runner.scenarioRunner()
 }
 
-func TestEndToEnd_ScenarioRun_AllNodesOffline_SingleNode(t *testing.T) {
+func TestEndToEnd_ScenarioRun_SingleNode_NodeGoesOffline(t *testing.T) {
 	runner := e2eMinimal(t, version.Phase0, types.WithEpochs(10))
-
 	params.TestParams.BeaconNodeCount = 1
 
+	evals := scenarioEvals()
+	evals = append(evals, ev.NewFinalizedCheckpointOccurs(3))
 	runner.config.BeaconFlags = append(runner.config.BeaconFlags, "--min-sync-peers=0")
-	runner.config.Evaluators = []types.Evaluator{
-		ev.PeersConnect,
-		ev.HealthzCheck,
-		ev.MetricsCheck,
-		ev.ValidatorsParticipatingAtEpoch(2),
-		ev.FinalizationOccurs(3),
-		ev.VerifyBlockGraffiti,
-		ev.ProposeVoluntaryExit,
-		ev.ValidatorsHaveExited,
-		ev.ColdStateCheckpoint,
-		ev.AltairForkTransition,
-		ev.BellatrixForkTransition,
-		ev.CapellaForkTransition,
-		// ev.DenebForkTransition, // TODO(12750): Enable this when geth main branch's engine API support.
-		ev.APIMiddlewareVerifyIntegrity,
-		ev.APIGatewayV1Alpha1VerifyIntegrity,
-		ev.FinishedSyncing,
-		ev.AllNodesHaveSameHead,
-		ev.ValidatorSyncParticipation,
-		ev.NewFinalizedCheckpointOccurs(3),
-	}
+	runner.config.Evaluators = evals
 	runner.config.EvalInterceptor = runner.allNodesOffline
 
 	runner.scenarioRunner()

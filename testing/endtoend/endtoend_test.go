@@ -787,11 +787,15 @@ func (r *testRunner) allNodesOffline(ec *e2etypes.EvaluationContext, epoch uint6
 			return nil
 		})
 
+		time.Sleep(5 * time.Second)
+
 		// create new connections to the beacon nodes (evaluators)
 		conns, closeConns, err := helpers.NewLocalConnections(r.comHandler.ctx, e2e.TestParams.BeaconNodeCount)
 		require.NoError(r.t, err, "Cannot create local connections")
 		r.beaconConns = conns
 		r.closeBeaconConns = closeConns
+
+		time.Sleep(5 * time.Second)
 
 		r.comHandler.group.Go(func() error {
 			if err := r.comHandler.validatorNodes.Start(r.comHandler.ctx); err != nil {

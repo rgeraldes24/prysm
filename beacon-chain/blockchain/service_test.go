@@ -281,23 +281,23 @@ func TestChainService_InitializeChainInfo(t *testing.T) {
 		wantedErr string
 	}{
 		{
-			name: "no unfinalized blocks + start from finalized checkpoint option enabled > finalized head",
+			name: "no unfinalized blocks + start from finalized checkpoint (default) > finalized head",
 			args: args{},
 		},
 		{
-			name: "db has unfinalized blocks + start from finalized checkpoint option enabled > finalized head",
+			name: "db has unfinalized blocks + start from finalized checkpoint (default) > finalized head",
 			args: args{
 				unfinalizedBlock: genFullBlock(t, util.DefaultBlockGenConfig(), 1),
 			},
 		},
 		{
-			name: "no unfinalized blocks + start from unfinalized head (default) > finalized head",
+			name: "no unfinalized blocks + start from unfinalized head option enabled > finalized head",
 			args: args{
 				unfinalizedStartEnabled: true,
 			},
 		},
 		{
-			name: "db has unfinalized blocks + start from unfinalized head (default) > unfinalized head",
+			name: "db has unfinalized blocks + start from unfinalized head option enabled > unfinalized head",
 			args: args{
 				unfinalizedStartEnabled: true,
 				unfinalizedBlock:        genFullBlock(t, util.DefaultBlockGenConfig(), 1),
@@ -319,7 +319,7 @@ func TestChainService_InitializeChainInfo(t *testing.T) {
 			}
 
 			if tt.args.unfinalizedStartEnabled {
-				opts = append(opts, WithUnfinalizedStart())
+				opts = append(opts, WithUnfinalizedHead())
 			}
 
 			svc, tr := minimalTestService(t, opts...)
@@ -363,7 +363,7 @@ func TestChainService_InitializeChainInfo(t *testing.T) {
 					expectedRoot    []byte
 				)
 
-				if svc.cfg.StartFromFinalizedCheckpoint || tt.args.unfinalizedBlock == nil {
+				if !svc.cfg.UnfinalizedStartEnabled || tt.args.unfinalizedBlock == nil {
 					var err error
 					expectedHeadBlk, err = genBlock.Proto()
 					require.NoError(t, err)

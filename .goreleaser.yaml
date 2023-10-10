@@ -11,10 +11,11 @@ builds:
       - -X runtime/version.gitTag={{.Version}} -X runtime/version.gitCommit={{.Commit}} -X runtime/version={{.Date}}
     env:
       - CGO_ENABLED=1
+      - CC=arm-linux-gnueabi-gcc
     goos:
       - linux
      # - windows
-      - darwin
+     # - darwin
     goarch:
       - amd64
      # - arm64

@@ -7,9 +7,10 @@ builds:
     main: ./cmd/beacon-chain
     binary: beacon-chain
     ldflags:
-      - -s -w -X runtime/version.gitTag={{.Version}} -X runtime/version.gitCommit={{.Commit}} -X runtime/version={{.Date}}
-    #env:
-    #  - CGO_ENABLED=0
+      #- -s -w -X runtime/version.gitTag={{.Version}} -X runtime/version.gitCommit={{.Commit}} -X runtime/version={{.Date}}
+      - -X runtime/version.gitTag={{.Version}} -X runtime/version.gitCommit={{.Commit}} -X runtime/version={{.Date}}
+    env:
+      - CGO_ENABLED=1
     goos:
       - linux
      # - windows

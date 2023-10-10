@@ -22,12 +22,21 @@ jobs:
           mv bazelisk-linux-amd64 "${GITHUB_WORKSPACE}/bin/bazel"
           chmod +x "${GITHUB_WORKSPACE}/bin/bazel"
 
-      - name: Build Linux amd64 artifacts
-        run: |
-          "${GITHUB_WORKSPACE}/bin/bazel" clean
-          "${GITHUB_WORKSPACE}/bin/bazel" build --config=release --config=linux_amd64 --define=blst_modern=false //cmd/beacon-chain //cmd/validator //cmd/client-stats //cmd/prysmctl
-          cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-$GITHUB_REF_NAME-linux-amd64
+      #- name: Build Linux amd64 artifacts
+      #  run: |
+      #    "${GITHUB_WORKSPACE}/bin/bazel" clean
+      #    "${GITHUB_WORKSPACE}/bin/bazel" build --config=release --config=linux_amd64 --define=blst_modern=false //cmd/beacon-chain //cmd/validator //cmd/client-stats //cmd/prysmctl
+      #    cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-$GITHUB_REF_NAME-linux-amd64
+
+      - name: Build Mac OSX amd64 artifacts
+       run: |
+         "${GITHUB_WORKSPACE}/bin/bazel" clean
+         "${GITHUB_WORKSPACE}/bin/bazel" build --config=release --config=osx_amd64_docker  //cmd/beacon-chain //cmd/validator //cmd/client-stats //cmd/prysmctl
+         cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-$GITHUB_REF_NAME-darwin-amd64
 
       - name: Upload artifacts to github release page
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN_GITHUB }}
         run: |
-          ./hack/upload-github-release-asset.sh github_api_token=$TOKEN_GITHUB owner=rgeraldes24 repo=prysm tag=$GITHUB_REF_NAME filename=/tmp/beacon-chain-$GITHUB_REF_NAME-linux-amd64      
+          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=$GITHUB_REF_NAME filename=/tmp/beacon-chain-$GITHUB_REF_NAME-darwin-amd64
+          #./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=$GITHUB_REF_NAME filename=/tmp/beacon-chain-$GITHUB_REF_NAME-linux-amd64      

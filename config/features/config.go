@@ -61,6 +61,10 @@ type Flags struct {
 	SaveFullExecutionPayloads bool // Save full beacon blocks with execution payloads in the database.
 	EnableStartOptimistic     bool // EnableStartOptimistic treats every block as optimistic at startup.
 
+	EnableStartUnfinalized bool // EnableStartUnfinalized enables the unfinalized block processing at startup.
+
+	EnableCrashRecovery bool // EnableCrashRecovery enables the crash recovery procedures.
+
 	DisableResourceManager     bool // Disables running the node with libp2p's resource manager.
 	DisableStakinContractCheck bool // Disables check for deposit contract when proposing blocks
 
@@ -256,6 +260,14 @@ func ConfigureBeaconChain(ctx *cli.Context) error {
 		cfg.EnableEIP4881 = true
 	}
 	cfg.AggregateIntervals = [3]time.Duration{aggregateFirstInterval.Value, aggregateSecondInterval.Value, aggregateThirdInterval.Value}
+	if ctx.Bool(enableStartupUnfinalized.Name) {
+		logEnabled(enableStartupUnfinalized)
+		cfg.EnableStartUnfinalized = true
+	}
+	if ctx.Bool(enableCrashRecovery.Name) {
+		logEnabled(enableCrashRecovery)
+		cfg.EnableCrashRecovery = true
+	}
 	Init(cfg)
 	return nil
 }

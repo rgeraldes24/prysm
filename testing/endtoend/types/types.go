@@ -142,6 +142,8 @@ type ComponentRunner interface {
 	Pause() error
 	// Resume resumes a component.
 	Resume() error
+	// GracefulShutdown shuts down a component safely.
+	GracefulShutdown() error
 	// Stop stops a component.
 	Stop() error
 	// UnderlyingProcess is the underlying process, once started.

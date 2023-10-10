@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/prysmaticlabs/prysm/v4/runtime/version"
+	ev "github.com/prysmaticlabs/prysm/v4/testing/endtoend/evaluators"
+	"github.com/prysmaticlabs/prysm/v4/testing/endtoend/params"
 	"github.com/prysmaticlabs/prysm/v4/testing/endtoend/types"
 )
 
@@ -29,5 +31,31 @@ func TestEndToEnd_ScenarioRun_EEOffline(t *testing.T) {
 
 	runner.config.Evaluators = scenarioEvals()
 	runner.config.EvalInterceptor = runner.eeOffline
+	runner.scenarioRunner()
+}
+
+func TestEndToEnd_ScenarioRun_AllNodesGoOffline(t *testing.T) {
+	runner := e2eMinimal(t, version.Phase0, types.WithEpochs(10))
+	params.TestParams.BeaconNodeCount = 4
+
+	evals := scenarioEvals()
+	evals = append(evals, ev.NewFinalizedCheckpointOccurs(3))
+	runner.config.BeaconFlags = append(runner.config.BeaconFlags, "--min-sync-peers=1", "--enable-crash-recovery")
+	runner.config.Evaluators = evals
+	runner.config.EvalInterceptor = runner.allNodesOffline
+
+	runner.scenarioRunner()
+}
+
+func TestEndToEnd_ScenarioRun_SingleNode_NodeGoesOffline(t *testing.T) {
+	runner := e2eMinimal(t, version.Phase0, types.WithEpochs(10))
+	params.TestParams.BeaconNodeCount = 1
+
+	evals := scenarioEvals()
+	evals = append(evals, ev.NewFinalizedCheckpointOccurs(3))
+	runner.config.BeaconFlags = append(runner.config.BeaconFlags, "--min-sync-peers=0", "--startup-unfinalized")
+	runner.config.Evaluators = evals
+	runner.config.EvalInterceptor = runner.allNodesOffline
+
 	runner.scenarioRunner()
 }

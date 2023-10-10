@@ -172,9 +172,9 @@ func WithClockSynchronizer(gs *startup.ClockSynchronizer) Option {
 	}
 }
 
-func WithSyncComplete(c chan struct{}) Option {
+func WithUnfinalizedHead() Option {
 	return func(s *Service) error {
-		s.syncComplete = c
+		s.cfg.UnfinalizedStartEnabled = true
 		return nil
 	}
 }

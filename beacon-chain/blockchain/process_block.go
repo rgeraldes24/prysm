@@ -14,6 +14,7 @@ import (
 	coreTime "github.com/prysmaticlabs/prysm/v4/beacon-chain/core/time"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/core/transition"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/db"
+	"github.com/prysmaticlabs/prysm/v4/beacon-chain/db/filters"
 	forkchoicetypes "github.com/prysmaticlabs/prysm/v4/beacon-chain/forkchoice/types"
 	"github.com/prysmaticlabs/prysm/v4/beacon-chain/state"
 	"github.com/prysmaticlabs/prysm/v4/config/features"
@@ -676,4 +677,174 @@ func (s *Service) handleInvalidExecutionError(ctx context.Context, err error, bl
 		return s.pruneInvalidBlock(ctx, blockRoot, parentRoot, InvalidBlockLVH(err))
 	}
 	return err
+}
+
+// processUnfinalizedBlocksFromDB is a function that defines the operations that are performed
+// to unfinalized blocks coming from the db at startup. The operations consist of:
+//  1. Apply fork choice to the unfinalized block
+//  2. Save latest head info
+//
+// Requires a lock on forkchoice.
+func (s *Service) processUnfinalizedBlocksFromDB() error {
+	startTime := time.Now()
+
+	headBlkDB, err := s.cfg.BeaconDB.HeadBlock(s.ctx)
+	if err != nil {
+		return errors.Wrap(err, "could not get head block from db")
+	}
+	if headBlkDB == nil || headBlkDB.IsNil() {
+		return nil
+	}
+
+	finalizedSlot := s.head.block.Block().Slot()
+
+	if startSlot, endSlot := finalizedSlot+1, headBlkDB.Block().Slot(); startSlot <= endSlot {
+		fields := logrus.Fields{
+			"#blocks":       0,
+			"finalizedSlot": finalizedSlot,
+			"headSlot":      headBlkDB.Block().Slot(),
+		}
+
+		unfinalizedBlks, err := loadBlocks(s.ctx, s.cfg.BeaconDB, startSlot, endSlot)
+		if err != nil {
+			return errors.Wrap(err, "could not get unfinalized blocks from db")
+		}
+		fields["#blocks"] = len(unfinalizedBlks)
+		fields["startSlot"] = startSlot
+		fields["endSlot"] = endSlot
+
+		for _, blk := range unfinalizedBlks {
+			blkCopy, err := blk.Copy()
+			if err != nil {
+				return err
+			}
+
+			blkRoot, err := blkCopy.Block().HashTreeRoot()
+			if err != nil {
+				return errors.Wrap(err, "could not get unfinalized block root")
+			}
+
+			preState, err := s.cfg.StateGen.StateByRoot(s.ctx, blkCopy.Block().ParentRoot())
+			if err != nil {
+				return errors.Wrapf(err, "could not get pre state")
+			}
+			if preState == nil || preState.IsNil() {
+				return errors.Wrap(err, "nil pre state")
+			}
+
+			// Save current justified and finalized epochs for future use.
+			// cannot use the available funcs for these ops because they read lock
+			jcp := s.cfg.ForkChoiceStore.JustifiedCheckpoint()
+			currStoreJustifiedEpoch := jcp.Epoch
+			fcp := s.cfg.ForkChoiceStore.FinalizedCheckpoint()
+			currStoreFinalizedEpoch := fcp.Epoch
+
+			// replay block
+			postState, err := s.cfg.StateGen.StateByRoot(s.ctx, blkRoot)
+			if err != nil {
+				return errors.Wrapf(err, "could not get post state")
+			}
+			if postState == nil || postState.IsNil() {
+				return errors.Wrap(err, "nil post state")
+			}
+
+			if err := s.cfg.StateGen.SaveState(s.ctx, blkRoot, postState); err != nil {
+				return errors.Wrap(err, "could not save state")
+			}
+
+			if err := s.cfg.ForkChoiceStore.InsertNode(s.ctx, postState, blkRoot); err != nil {
+				return errors.Wrapf(err, "could not insert unfinalized block %d to fork choice store", blkCopy.Block().Slot())
+			}
+
+			if err := s.handleBlockAttestations(s.ctx, blkCopy.Block(), postState); err != nil {
+				return errors.Wrap(err, "could not handle block's attestations")
+			}
+
+			s.InsertSlashingsToForkChoiceStore(s.ctx, blkCopy.Block().Body().AttesterSlashings())
+
+			if err := s.cfg.ForkChoiceStore.SetOptimisticToValid(s.ctx, blkRoot); err != nil {
+				return errors.Wrap(err, "could not set optimistic block to valid")
+			}
+
+			headRoot, err := s.cfg.ForkChoiceStore.Head(s.ctx)
+			if err != nil {
+				log.WithError(err).Warn("Could not update head")
+			}
+
+			// new head
+			if blkRoot == headRoot {
+				if err := s.saveHead(s.ctx, blkRoot, blkCopy, postState); err != nil {
+					return errors.Wrap(err, "could not notify forkchoice update")
+				}
+
+				if err := s.pruneAttsFromPool(blkCopy); err != nil {
+					log.WithError(err).Error("could not prune attestations from pool")
+				}
+
+				if slot := postState.Slot(); slots.IsEpochEnd(slot) {
+					if err := transition.UpdateNextSlotCache(s.ctx, blkRoot[:], postState); err != nil {
+						return errors.Wrap(err, "could not update next slot state cache")
+					}
+					if err := s.handleEpochBoundary(s.ctx, slot, postState, blkRoot[:]); err != nil {
+						return errors.Wrap(err, "could not handle epoch boundary")
+					}
+				} else {
+					go func() {
+						slotCtx, cancel := context.WithTimeout(context.Background(), slotDeadline)
+						defer cancel()
+						if err := transition.UpdateNextSlotCache(slotCtx, blkRoot[:], postState); err != nil {
+							log.WithError(err).Error("could not update next slot state cache")
+						}
+					}()
+				}
+			}
+
+			if err := s.updateJustificationOnBlock(s.ctx, preState, postState, currStoreJustifiedEpoch); err != nil {
+				return errors.Wrap(err, "could not update justified checkpoint")
+			}
+
+			newFinalized, err := s.updateFinalizationOnBlock(s.ctx, preState, postState, currStoreFinalizedEpoch)
+			if err != nil {
+				return errors.Wrap(err, "could not update finalized checkpoint")
+			}
+
+			if newFinalized {
+				finalized := s.cfg.ForkChoiceStore.FinalizedCheckpoint()
+				depCtx, cancel := context.WithTimeout(context.Background(), depositDeadline)
+				go func() {
+					s.insertFinalizedDeposits(depCtx, finalized.Root)
+					cancel()
+				}()
+			}
+
+			fmt.Println("prune")
+			if err := s.prunePostBlockOperationPools(s.ctx, blkCopy, blkRoot); err != nil {
+				log.WithError(err).Error("Could not prune canonical objects from pool ")
+			}
+		}
+
+		fields["processingTime"] = time.Since(startTime)
+		log.WithFields(fields).Debug("Processed unfinalized blocks from DB")
+	}
+
+	return nil
+}
+
+// loadBlocks loads the blocks between start slot and end slot.
+func loadBlocks(ctx context.Context, beaconDB db.NoHeadAccessDatabase, startSlot, endSlot primitives.Slot) ([]interfaces.ReadOnlySignedBeaconBlock, error) {
+	// Nothing to load for invalid range.
+	if startSlot > endSlot {
+		return nil, fmt.Errorf("start slot %d > end slot %d", startSlot, endSlot)
+	}
+	filter := filters.NewFilter().SetStartSlot(startSlot).SetEndSlot(endSlot)
+	blocks, blockRoots, err := beaconDB.Blocks(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	// The retrieved blocks and block roots have to be in the same length given same filter.
+	if len(blocks) != len(blockRoots) {
+		return nil, fmt.Errorf("length of blocks(%d) and roots(%d) don't match", len(blocks), len(blockRoots))
+	}
+
+	return blocks, nil
 }

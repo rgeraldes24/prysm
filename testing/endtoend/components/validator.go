@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/bazelbuild/rules_go/go/tools/bazel"
@@ -37,9 +38,11 @@ var _ e2etypes.MultipleComponentRunners = (*ValidatorNodeSet)(nil)
 // ValidatorNodeSet represents set of validator nodes.
 type ValidatorNodeSet struct {
 	e2etypes.ComponentRunner
-	config  *e2etypes.E2EConfig
+	config *e2etypes.E2EConfig
+	nodes  []e2etypes.ComponentRunner
+
+	once    sync.Once
 	started chan struct{}
-	nodes   []e2etypes.ComponentRunner
 }
 
 // NewValidatorNodeSet creates and returns a set of validator nodes.
@@ -70,8 +73,12 @@ func (s *ValidatorNodeSet) Start(ctx context.Context) error {
 	// Wait for all nodes to finish their job (blocking).
 	// Once nodes are ready passed in handler function will be called.
 	return helpers.WaitOnNodes(ctx, nodes, func() {
-		// All nodes started, close channel, so that all services waiting on a set, can proceed.
-		close(s.started)
+		// @NOTE(rgeraldes): workaround to be able to restart the set (close panics on restart)
+		s.once.Do(func() {
+			// All nodes started, close channel, so that all services waiting on a set, can proceed.
+			close(s.started)
+		})
+
 	})
 }
 
@@ -94,6 +101,16 @@ func (s *ValidatorNodeSet) Pause() error {
 func (s *ValidatorNodeSet) Resume() error {
 	for _, n := range s.nodes {
 		if err := n.Resume(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// GracefulShutdown shuts down the component safely.
+func (s *ValidatorNodeSet) GracefulShutdown() error {
+	for _, n := range s.nodes {
+		if err := n.GracefulShutdown(); err != nil {
 			return err
 		}
 	}
@@ -233,7 +250,7 @@ func (v *ValidatorNode) Start(ctx context.Context) error {
 		fmt.Sprintf("--%s=%s", cmdshared.VerbosityFlag.Name, "debug"),
 		fmt.Sprintf("--%s=%s", flags.ProposerSettingsFlag.Name, proposerSettingsPathPath),
 		fmt.Sprintf("--%s=%s", cmdshared.ChainConfigFileFlag.Name, cfgPath),
-		"--" + cmdshared.ForceClearDB.Name,
+		//"--" + cmdshared.ForceClearDB.Name, @NOTE(rgeraldes): we cannot use this one if we're going for restarts
 		"--" + cmdshared.AcceptTosFlag.Name,
 	}
 
@@ -323,6 +340,11 @@ func (v *ValidatorNode) Pause() error {
 // Resume resumes the component and its underlying process.
 func (v *ValidatorNode) Resume() error {
 	return v.cmd.Process.Signal(syscall.SIGCONT)
+}
+
+// GracefulShutdown shuts down the component safely.
+func (v *ValidatorNode) GracefulShutdown() error {
+	return v.cmd.Process.Signal(syscall.SIGINT)
 }
 
 // Stop stops the component and its underlying process.

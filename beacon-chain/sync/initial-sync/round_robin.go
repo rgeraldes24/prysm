@@ -116,13 +116,17 @@ func (s *Service) syncToNonFinalizedEpoch(ctx context.Context, genesis time.Time
 	if err != nil {
 		return errors.Wrapf(err, "unable to initialize context version map using genesis validator root = %#x", vr)
 	}
+	highestExpectedSlot := slots.Since(genesis)
+	if s.cfg.CrashRecoveryEnabled {
+		highestExpectedSlot = 0
+	}
 	queue := newBlocksQueue(ctx, &blocksQueueConfig{
 		p2p:                 s.cfg.P2P,
 		db:                  s.cfg.DB,
 		chain:               s.cfg.Chain,
 		clock:               s.clock,
 		ctxMap:              ctxMap,
-		highestExpectedSlot: slots.Since(genesis),
+		highestExpectedSlot: highestExpectedSlot,
 		mode:                modeNonConstrained,
 	})
 	if err := queue.start(); err != nil {

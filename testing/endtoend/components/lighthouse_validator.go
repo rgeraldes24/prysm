@@ -286,6 +286,12 @@ func (k *KeystoreGenerator) Resume() error {
 	return nil
 }
 
+// GracefulShutdown shuts down the component safely.
+func (node *KeystoreGenerator) GracefulShutdown() error {
+	// no-op
+	return nil
+}
+
 // Stop stops the component and its underlying process.
 func (k *KeystoreGenerator) Stop() error {
 	// no-op

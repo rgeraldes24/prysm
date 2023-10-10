@@ -86,6 +86,7 @@ type config struct {
 	WeakSubjectivityCheckpt *ethpb.Checkpoint
 	BlockFetcher            execution.POWBlockFetcher
 	FinalizedStateAtStartUp state.BeaconState
+	UnfinalizedStartEnabled bool
 	ExecutionEngineCaller   execution.EngineCaller
 }
 
@@ -273,6 +274,13 @@ func (s *Service) StartFromSavedState(saved state.BeaconState) error {
 			}
 		}
 	}
+
+	if s.cfg.UnfinalizedStartEnabled {
+		if err := s.processUnfinalizedBlocksFromDB(); err != nil {
+			return errors.Wrap(err, "could not process unfinalized blocks from db")
+		}
+	}
+
 	// not attempting to save initial sync blocks here, because there shouldn't be any until
 	// after the statefeed.Initialized event is fired (below)
 	if err := s.wsVerifier.VerifyWeakSubjectivity(s.ctx, finalized.Epoch); err != nil {

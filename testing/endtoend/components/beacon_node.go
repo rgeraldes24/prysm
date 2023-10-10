@@ -10,6 +10,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/bazelbuild/rules_go/go/tools/bazel"
@@ -39,6 +40,7 @@ type BeaconNodeSet struct {
 	nodes   []e2etypes.ComponentRunner
 	enr     string
 	ids     []string
+	once    sync.Once
 	started chan struct{}
 }
 
@@ -77,8 +79,12 @@ func (s *BeaconNodeSet) Start(ctx context.Context) error {
 			}
 			s.config.PeerIDs = s.ids
 		}
-		// All nodes started, close channel, so that all services waiting on a set, can proceed.
-		close(s.started)
+
+		// @NOTE(rgeraldes): workaround to be able to restart the set (close panics on restart)
+		s.once.Do(func() {
+			// All nodes started, close channel, so that all services waiting on a set, can proceed.
+			close(s.started)
+		})
 	})
 }
 
@@ -101,6 +107,16 @@ func (s *BeaconNodeSet) Pause() error {
 func (s *BeaconNodeSet) Resume() error {
 	for _, n := range s.nodes {
 		if err := n.Resume(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// GracefulShutdown shuts down the component safely.
+func (s *BeaconNodeSet) GracefulShutdown() error {
+	for _, n := range s.nodes {
+		if err := n.GracefulShutdown(); err != nil {
 			return err
 		}
 	}
@@ -270,7 +286,7 @@ func (node *BeaconNode) Start(ctx context.Context) error {
 		fmt.Sprintf("--%s=%s", cmdshared.ChainConfigFileFlag.Name, cfgPath),
 		"--" + cmdshared.ValidatorMonitorIndicesFlag.Name + "=1",
 		"--" + cmdshared.ValidatorMonitorIndicesFlag.Name + "=2",
-		"--" + cmdshared.ForceClearDB.Name,
+		//"--" + cmdshared.ForceClearDB.Name, @NOTE(rgeraldes): we cannot use this one if we're going for restarts
 		"--" + cmdshared.AcceptTosFlag.Name,
 		"--" + flags.EnableDebugRPCEndpoints.Name,
 	}
@@ -338,6 +354,11 @@ func (node *BeaconNode) Pause() error {
 // Resume resumes the component and its underlying process.
 func (node *BeaconNode) Resume() error {
 	return node.cmd.Process.Signal(syscall.SIGCONT)
+}
+
+// GracefulShutdown shuts down the component safely.
+func (node *BeaconNode) GracefulShutdown() error {
+	return node.cmd.Process.Signal(syscall.SIGINT)
 }
 
 // Stop stops the component and its underlying process.

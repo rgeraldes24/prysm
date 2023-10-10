@@ -93,6 +93,12 @@ func (s *LighthouseBeaconNodeSet) Resume() error {
 	return nil
 }
 
+// GracefulShutdown shuts down the component safely.
+func (s *LighthouseBeaconNodeSet) GracefulShutdown() error {
+	// no-op
+	return nil
+}
+
 // Stop stops the component and its underlying process.
 func (s *LighthouseBeaconNodeSet) Stop() error {
 	for _, n := range s.nodes {

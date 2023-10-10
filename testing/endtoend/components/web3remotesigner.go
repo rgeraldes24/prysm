@@ -133,6 +133,12 @@ func (w *Web3RemoteSigner) Resume() error {
 	return w.cmd.Process.Signal(syscall.SIGCONT)
 }
 
+// GracefulShutdown shuts down the component safely.
+func (w *Web3RemoteSigner) GracefulShutdown() error {
+	// no-op
+	return nil
+}
+
 // Stop stops the component and its underlying process.
 func (w *Web3RemoteSigner) Stop() error {
 	return w.cmd.Process.Kill()

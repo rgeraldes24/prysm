@@ -29,10 +29,10 @@ jobs:
       #    cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-$GITHUB_REF_NAME-linux-amd64
 
       - name: Build Mac OSX amd64 artifacts
-       run: |
-         "${GITHUB_WORKSPACE}/bin/bazel" clean
-         "${GITHUB_WORKSPACE}/bin/bazel" build --config=release --config=osx_amd64_docker  //cmd/beacon-chain //cmd/validator //cmd/client-stats //cmd/prysmctl
-         cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-$GITHUB_REF_NAME-darwin-amd64
+        run: |
+          "${GITHUB_WORKSPACE}/bin/bazel" clean
+          "${GITHUB_WORKSPACE}/bin/bazel" build --config=release --config=osx_amd64_docker  //cmd/beacon-chain //cmd/validator //cmd/client-stats //cmd/prysmctl
+          cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-$GITHUB_REF_NAME-darwin-amd64
 
       - name: Upload artifacts to github release page
         env:

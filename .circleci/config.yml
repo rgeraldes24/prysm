@@ -4,7 +4,7 @@ executors:
   my-executor:
     docker:
       - image: cimg/base:2023.09
-    working_directory: /workspace
+    working_directory: /tmp
 
 
 jobs:

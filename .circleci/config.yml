@@ -63,7 +63,7 @@ jobs:
           root: bin
           paths:
             - beacon-chain-${CIRCLE_TAG}-darwin-amd64
-            
+
   post-build:
     executor: my-executor
     steps:
@@ -84,6 +84,7 @@ workflows:
           #   # branches:
           #   #   ignore: /.*/
       - build-windows-amd64-beacon-chain-binary
+      - build-darwin-amd64-beacon-chain-binary
       - post-build:
           requires:
             - build-linux-amd64-beacon-chain-binary

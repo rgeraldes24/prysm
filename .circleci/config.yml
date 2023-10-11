@@ -19,30 +19,73 @@ jobs:
           chmod +x bin/bazel
       - run: |
           bin/bazel build --config=release --config=linux_amd64 --define=blst_modern=false //cmd/beacon-chain
-          cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain bin/beacon-chain-$CIRCLE_TAG-linux-amd64
+          cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain bin/beacon-chain-${CIRCLE_TAG}-linux-amd64
+          ls bin
       - persist_to_workspace:
           root: bin
           paths:
-            - beacon-chain-$CIRCLE_TAG-linux-amd64
+            - beacon-chain-${CIRCLE_TAG}-linux-amd64
+  
+  build-windows-amd64-beacon-chain-binary:
+    executor: my-executor
+    #resource_class: xlarge
+    steps:
+      - checkout
+      - run: |
+          curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-linux-amd64"
+          mkdir -p bin
+          mv bazelisk-linux-amd64 bin/bazel
+          chmod +x bin/bazel
+      - run: |
+          bin/bazel build --config=release --config=windows_amd64_docker  //cmd/beacon-chain
+          cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain.exe bin/beacon-chain-${CIRCLE_TAG}-windows-amd64.exe
+          ls bin
+      - persist_to_workspace:
+          root: bin
+          paths:
+            - beacon-chain-${CIRCLE_TAG}-windows-amd64.exe
+  
+  build-darwin-amd64-beacon-chain-binary:
+    executor: my-executor
+    #resource_class: xlarge
+    steps:
+      - checkout
+      - run: |
+          curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-linux-amd64"
+          mkdir -p bin
+          mv bazelisk-linux-amd64 bin/bazel
+          chmod +x bin/bazel
+      - run: |
+          bin/bazel build --config=release --config=osx_amd64_docker  //cmd/beacon-chain
+          cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain bin/beacon-chain-${CIRCLE_TAG}-darwin-amd64
+          ls bin
+      - persist_to_workspace:
+          root: bin
+          paths:
+            - beacon-chain-${CIRCLE_TAG}-darwin-amd64
+            
   post-build:
     executor: my-executor
     steps:
       - attach_workspace:
-          at: /tmp
+          at: /tmp/workspace/bin
       - checkout
       - run: |
-          ls tmp
+          ls /tmp/workspace/bin
 
 workflows:
   release:
     jobs:
-      - build-linux-amd64-beacon-chain-binary:
-          filters:
-            tags:
-              only: /^circlev.*/
-              #only: /^v.*/
-            # branches:
-            #   ignore: /.*/
+      - build-linux-amd64-beacon-chain-binary
+          # filters:
+          #   tags:
+          #     only: /^circlev.*/
+          #     #only: /^v.*/
+          #   # branches:
+          #   #   ignore: /.*/
+      - build-windows-amd64-beacon-chain-binary
       - post-build:
           requires:
             - build-linux-amd64-beacon-chain-binary
+            - build-windows-amd64-beacon-chain-binary
+            - build-darwin-amd64-beacon-chain-binary

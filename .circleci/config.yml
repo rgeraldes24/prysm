@@ -41,8 +41,8 @@ workflows:
             tags:
               only: /^circlev.*/
               #only: /^v.*/
-            branches:
-              ignore: /.*/
+            # branches:
+            #   ignore: /.*/
       - post-build:
           requires:
             - build-linux-amd64-beacon-chain-binary

@@ -1,0 +1,45 @@
+version: 2.1
+
+executors:
+  my-executor:
+    docker:
+      - image: cimg/base:2023.09
+    working_directory: /tmp
+
+
+jobs:
+  build-linux-amd64-beacon-chain-binary:
+    executor: my-executor
+    resource_class: xlarge
+    steps:
+      - checkout
+      - setup-bazel:
+          bazel-version: 6.3.2
+      - run: |
+          mkdir -p bin
+          bazel build --config=release --config=linux_amd64 --define=blst_modern=false //cmd/beacon-chain
+          cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain bin/beacon-chain-$CIRCLE_TAG-linux-amd64
+      - persist_to_workspace:
+          root: bin
+          paths:
+            - beacon-chain-$CIRCLE_TAG-linux-amd64
+  post-build:
+    executor: my-executor
+    steps:
+      - attach_workspace:
+          at: /tmp/bin
+      - checkout
+      - run: |
+          ls tmp/bin
+
+workflows:
+  release:
+    jobs:
+      - build-linux-amd64-beacon-chain-binary:
+          filters:
+            tags:
+              only: /^circlev.*/
+              #only: /^v.*/
+      - post-build:
+          requires:
+            - build-linux-amd64-beacon-chain-binary

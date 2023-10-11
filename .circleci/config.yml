@@ -13,11 +13,13 @@ jobs:
     resource_class: xlarge
     steps:
       - checkout
-      - setup-bazel:
-          bazel-version: 6.3.2
       - run: |
+          curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-linux-amd64"
           mkdir -p bin
-          bazel build --config=release --config=linux_amd64 --define=blst_modern=false //cmd/beacon-chain
+          mv bazelisk-linux-amd64 "${GITHUB_WORKSPACE}/bin/bazel"
+          chmod +x bin/bazel
+      - run: |
+          bin/bazel build --config=release --config=linux_amd64 --define=blst_modern=false //cmd/beacon-chain
           cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain bin/beacon-chain-$CIRCLE_TAG-linux-amd64
       - persist_to_workspace:
           root: bin

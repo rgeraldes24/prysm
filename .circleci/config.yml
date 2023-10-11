@@ -4,7 +4,7 @@ executors:
   my-executor:
     docker:
       - image: cimg/base:2023.09
-    working_directory: /tmp
+    working_directory: /workspace
 
 
 jobs:
@@ -15,24 +15,24 @@ jobs:
       - checkout
       - run: |
           curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-linux-amd64"
-          mkdir -p bin
-          mv bazelisk-linux-amd64 "${GITHUB_WORKSPACE}/bin/bazel"
-          chmod +x bin/bazel
+          mkdir -p "${CIRCLE_WORKING_DIRECTORY}/bin/"
+          mv bazelisk-linux-amd64 "${CIRCLE_WORKING_DIRECTORY}/bin/bazel"
+          chmod +x "${CIRCLE_WORKING_DIRECTORY}/bin/bazel"
       - run: |
-          bin/bazel build --config=release --config=linux_amd64 --define=blst_modern=false //cmd/beacon-chain
-          cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain bin/beacon-chain-$CIRCLE_TAG-linux-amd64
+          "${CIRCLE_WORKING_DIRECTORY}/bin/bazel" build --config=release --config=linux_amd64 --define=blst_modern=false //cmd/beacon-chain
+          cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-$CIRCLE_TAG-linux-amd64
       - persist_to_workspace:
-          root: bin
+          root: /tmp
           paths:
             - beacon-chain-$CIRCLE_TAG-linux-amd64
   post-build:
     executor: my-executor
     steps:
       - attach_workspace:
-          at: /tmp/bin
+          at: /tmp
       - checkout
       - run: |
-          ls tmp/bin
+          ls tmp
 
 workflows:
   release:

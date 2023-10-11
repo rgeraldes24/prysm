@@ -22,17 +22,44 @@ jobs:
           mv bazelisk-linux-amd64 "${GITHUB_WORKSPACE}/bin/bazel"
           chmod +x "${GITHUB_WORKSPACE}/bin/bazel"
 
-      #- name: Build Linux amd64 artifacts
-      #  run: |
-      #    "${GITHUB_WORKSPACE}/bin/bazel" clean
-      #    "${GITHUB_WORKSPACE}/bin/bazel" build --config=release --config=linux_amd64 --define=blst_modern=false //cmd/beacon-chain //cmd/validator //cmd/client-stats //cmd/prysmctl
-      #    cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-$GITHUB_REF_NAME-linux-amd64
-
-      - name: Build Mac OSX amd64 artifacts
+      - name: Rebuild and push docker images with correct tag metadata.
         run: |
           "${GITHUB_WORKSPACE}/bin/bazel" clean
-          "${GITHUB_WORKSPACE}/bin/bazel" build --config=release --config=osx_amd64_docker  //cmd/beacon-chain //cmd/validator //cmd/client-stats //cmd/prysmctl
-          cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-$GITHUB_REF_NAME-darwin-amd64
+          "${GITHUB_WORKSPACE}/bin/bazel" run //cmd/beacon-chain:push_images --config=release
+          # "${GITHUB_WORKSPACE}/bin/bazel" run //cmd/beacon-chain:push_oci_image --config=release
+          # "${GITHUB_WORKSPACE}/bin/bazel" run //cmd/beacon-chain:push_images --config=release && bazel run //cmd/validator:push_images --config=release
+          # "${GITHUB_WORKSPACE}/bin/bazel" run //cmd/beacon-chain:push_oci_image --config=release && bazel run //cmd/validator:push_oci_image --config=release
+          sleep 30
+
+      - name: Build Linux amd64 artifacts
+        run: |
+          "${GITHUB_WORKSPACE}/bin/bazel" clean
+          "${GITHUB_WORKSPACE}/bin/bazel" build --config=release --config=linux_amd64 --define=blst_modern=false //cmd/beacon-chain
+          # "${GITHUB_WORKSPACE}/bin/bazel" build --config=release --config=linux_amd64 --define=blst_modern=false //cmd/beacon-chain //cmd/validator //cmd/client-stats //cmd/prysmctl
+          cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-$GITHUB_REF_NAME-linux-amd64
+        
+      # - name: Build Mac OSX amd64 artifacts
+      #   run: |
+      #     "${GITHUB_WORKSPACE}/bin/bazel" clean
+      #     "${GITHUB_WORKSPACE}/bin/bazel" build --config=release --config=osx_amd64_docker  //cmd/beacon-chain //cmd/validator //cmd/client-stats //cmd/prysmctl
+      #     cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-$GITHUB_REF_NAME-darwin-amd64
+
+      # - name: Build Windows artifacts
+      #   run: |
+      #     "${GITHUB_WORKSPACE}/bin/bazel" clean
+      #     "${GITHUB_WORKSPACE}/bin/bazel" build --config=release --config=windows_amd64_docker  //cmd/beacon-chain //cmd/validator //cmd/client-stats //cmd/prysmctl
+      #     cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain.exe /tmp/beacon-chain-$GITHUB_REF_NAME-windows-amd64.exe
+      #     cp bazel-bin/cmd/validator/validator_/validator.exe /tmp/validator-$GITHUB_REF_NAME-windows-amd64.exe
+      #     cp bazel-bin/cmd/client-stats/client-stats_/client-stats.exe /tmp/client-stats-$GITHUB_REF_NAME-windows-amd64.exe
+      #     cp bazel-bin/cmd/prysmctl/prysmctl_/prysmctl.exe /tmp/prysmctl-$GITHUB_REF_NAME-windows-amd64.exe
+
+      - name: Generate sha256
+        run: |
+          sha256sum tmp/beacon-chain-$GITHUB_REF_NAME-linux-amd64 > tmp/beacon-chain-$GITHUB_REF_NAME-linux-amd64.sha256
+
+      # - name: Sign all of the sha256
+      #   run: |
+      #     gpg -o /tmp/beacon-chain-$BUILDKITE_TAG-linux-amd64.sig --default-key 0AE0051D647BA3C1A917AF4072E33E4DF1A5036E --sign --detach-sig /tmp/beacon-chain-$BUILDKITE_TAG-linux-amd64
 
       - name: Upload artifacts to github release page
         env:

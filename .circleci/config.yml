@@ -14,14 +14,14 @@ jobs:
       - checkout
       - run: |
           curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-linux-amd64"
-          mkdir -p "bin"
-          mv bazelisk-linux-amd64 "${CIRCLE_WORKING_DIRECTORY}/bin/bazel"
-          chmod +x "${CIRCLE_WORKING_DIRECTORY}/bin/bazel"
+          mkdir -p bin
+          mv bazelisk-linux-amd64 bin/bazel
+          chmod +x bin/bazel
       - run: |
-          "${CIRCLE_WORKING_DIRECTORY}/bin/bazel" build --config=release --config=linux_amd64 --define=blst_modern=false //cmd/beacon-chain
-          cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-$CIRCLE_TAG-linux-amd64
+          bin/bazel build --config=release --config=linux_amd64 --define=blst_modern=false //cmd/beacon-chain
+          cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain bin/beacon-chain-$CIRCLE_TAG-linux-amd64
       - persist_to_workspace:
-          root: /tmp
+          root: bin
           paths:
             - beacon-chain-$CIRCLE_TAG-linux-amd64
   post-build:
@@ -41,6 +41,8 @@ workflows:
             tags:
               only: /^circlev.*/
               #only: /^v.*/
+            branches:
+              ignore: /.*/
       - post-build:
           requires:
             - build-linux-amd64-beacon-chain-binary

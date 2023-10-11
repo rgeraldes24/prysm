@@ -28,7 +28,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Rebuild and push docker images with correct tag metadata.
+      - name: Rebuild and push docker images with correct tag metadata
         run: |
           "${GITHUB_WORKSPACE}/bin/bazel" clean
           "${GITHUB_WORKSPACE}/bin/bazel" run //cmd/beacon-chain:push_images --config=release
@@ -73,3 +73,9 @@ jobs:
         run: |
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=$GITHUB_REF_NAME filename=/tmp/beacon-chain-$GITHUB_REF_NAME-darwin-amd64
           #./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=$GITHUB_REF_NAME filename=/tmp/beacon-chain-$GITHUB_REF_NAME-linux-amd64      
+
+      - name: Tag docker images with the version tag and stable
+        run: |
+          ./hack/tag-versioned-docker-images.sh 
+          ./hack/tag-versioned-docker-images.sh -s
+

@@ -6,7 +6,6 @@ executors:
       - image: cimg/base:2023.09
     working_directory: /tmp/workspace
 
-
 jobs:
   build-linux-amd64-beacon-chain-binary:
     executor: my-executor

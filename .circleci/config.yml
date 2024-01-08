@@ -55,10 +55,13 @@ jobs:
           rm -rf /tmp/bazel-cache/output-root/install
           bin/bazel build --config=release --define=blst_modern=false //cmd/beacon-chain
           #cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-${CIRCLE_TAG}-linux-amd64
+          cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain
           #(cd /tmp && sha256sum beacon-chain-${CIRCLE_TAG}-linux-amd64 > beacon-chain-${CIRCLE_TAG}-linux-amd64.sha256)
+          (cd /tmp && sha256sum beacon-chain > beacon-chain.sha256)
           #gpg -o /tmp/beacon-chain-${CIRCLE_TAG}-linux-amd64.sig --default-key 0AE0051D647BA3C1A917AF4072E33E4DF1A5036E --sign --detach-sig /tmp/beacon-chain-${CIRCLE_TAG}-linux-amd64
+          gpg -o /tmp/beacon-chain.sig --default-key 0AE0051D647BA3C1A917AF4072E33E4DF1A5036E --sign --detach-sig /tmp/beacon-chain
           #./hack/upload-github-release-asset.sh github_api_token=$TOKEN owner=prysmaticlabs repo=prysm tag=${CIRCLE_TAG} filename=/tmp/beacon-chain-${CIRCLE_TAG}-linux-amd64
-          #ls bin
+          ./hack/upload-github-release-asset.sh github_api_token=$TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/beacon-chain
       - *clean_bazel_cache
       - *save_bazel_cache
       

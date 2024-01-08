@@ -1,0 +1,41 @@
+build --disk_cache=/tmp/bazel-disk-cache
+
+build --experimental_use_hermetic_linux_sandbox
+
+# Import workspace options.
+import %workspace%/.bazelrc
+
+# Set convenient location for Bazel files to cache
+startup --output_user_root=/tmp/bazel-cache/output-root
+
+# Bazel doesn't calculate resource ceiling correctly when running under Docker.
+# Memory, CPU cores, disk I/O
+#build --local_cpu_resources=1
+#build --local_ram_resources=3072
+build --jobs=1
+
+# More details on failures
+build --verbose_failures=true
+
+# startup --host_jvm_args=-Xmx4g --host_jvm_args=-Xms2g
+build --experimental_strict_action_env
+build --sandbox_tmpfs_path=/tmp
+build --verbose_failures
+build --announce_rc
+build --show_progress_rate_limit=5
+build --curses=no --color=no
+build --keep_going
+build --test_output=errors
+build --flaky_test_attempts=5
+
+# Produce output suitable for consumption on the CircleCI logs
+build --curses=no --color=yes
+test --test_summary=terse
+test --test_verbose_timeout_warnings
+
+# Better caching
+build:nostamp --nostamp
+
+build --build_metadata=ROLE=CI
+build --build_metadata=REPO_URL=https://github.com/theQRL/qrysm.git
+build --workspace_status_command=./hack/workspace_status_ci.sh

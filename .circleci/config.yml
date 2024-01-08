@@ -58,8 +58,10 @@ jobs:
           cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain
           #(cd /tmp && sha256sum beacon-chain-${CIRCLE_TAG}-linux-amd64 > beacon-chain-${CIRCLE_TAG}-linux-amd64.sha256)
           (cd /tmp && sha256sum beacon-chain > beacon-chain.sha256)
+          # need to add the key to the machine
           #gpg -o /tmp/beacon-chain-${CIRCLE_TAG}-linux-amd64.sig --default-key 0AE0051D647BA3C1A917AF4072E33E4DF1A5036E --sign --detach-sig /tmp/beacon-chain-${CIRCLE_TAG}-linux-amd64
-          gpg -o /tmp/beacon-chain.sig --default-key 0AE0051D647BA3C1A917AF4072E33E4DF1A5036E --sign --detach-sig /tmp/beacon-chain
+          gpg --generate-key
+          gpg -o /tmp/beacon-chain.sig --sign --detach-sig /tmp/beacon-chain
           #./hack/upload-github-release-asset.sh github_api_token=$TOKEN owner=prysmaticlabs repo=prysm tag=${CIRCLE_TAG} filename=/tmp/beacon-chain-${CIRCLE_TAG}-linux-amd64
           ./hack/upload-github-release-asset.sh github_api_token=$TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/beacon-chain
       - *clean_bazel_cache

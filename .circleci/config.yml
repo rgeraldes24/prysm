@@ -46,42 +46,6 @@ commands:
           mv bazelisk-<< parameters.platform >> bin/bazel
           chmod +x bin/bazel
 
-# install_bazel_linux_amd64: &install_bazel_linux_amd64
-#   run:
-#     name: Install bazel
-#     command: |
-#       curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-linux-amd64"
-#       mkdir -p bin
-#       mv bazelisk-linux-amd64 bin/bazel
-#       chmod +x bin/bazel
-
-# install_bazel_linux_arm64: &install_bazel_linux_arm64
-#   run:
-#     name: Install bazel
-#     command: |
-#       curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-linux-arm64"
-#       mkdir -p bin
-#       mv bazelisk-linux-arm64 bin/bazel
-#       chmod +x bin/bazel
-
-# install_bazel_darwin_amd64: &install_bazel_darwin_amd64
-#   run:
-#     name: Install bazel
-#     command: |
-#       curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-darwin-amd64"
-#       mkdir -p bin
-#       mv bazelisk-darwin-amd64 bin/bazel
-#       chmod +x bin/bazel
-
-# install_bazel_darwin_arm64: &install_bazel_darwin_arm64
-#   run:
-#     name: Install bazel
-#     command: |
-#       curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-darwin-arm64"
-#       mkdir -p bin
-#       mv bazelisk-darwin-arm64 bin/bazel
-#       chmod +x bin/bazel
-
 jobs:
   publish-linux-amd64-beacon-chain-binary:
     docker:
@@ -129,7 +93,7 @@ jobs:
 
   publish-linux-arm64-beacon-chain-binary:
     machine:
-      image: ubuntu-2204:2023.07.1
+      image: ubuntu-2004:current
     resource_class: arm.medium
     steps:
       - checkout
@@ -312,7 +276,7 @@ jobs:
 workflows:
   release:
     jobs:
-      - publish-linux-amd64-beacon-chain-binary
+      #- publish-linux-amd64-beacon-chain-binary working
       - publish-linux-arm64-beacon-chain-binary
       - publish-darwin-amd64-beacon-chain-binary
       - publish-darwin-arm64-beacon-chain-binary

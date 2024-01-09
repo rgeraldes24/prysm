@@ -41,7 +41,7 @@ commands:
         default: "linux-amd64"
     steps:
       - run: |
-          curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-<< parameters.platform >>"
+          curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.19.0/bazelisk-<< parameters.platform >>"
           mkdir -p bin
           mv bazelisk-<< parameters.platform >> bin/bazel
           chmod +x bin/bazel

@@ -44,13 +44,11 @@ build:docker-sandbox --unconditional_warning="⚠️  Docker sandbox is extremel
 build:docker-sandbox --spawn_strategy=docker --strategy=Javac=docker --genrule_strategy=docker
 build:docker-sandbox --define=EXECUTOR=remote
 build:docker-sandbox --experimental_docker_verbose
-build:docker-sandbox --experimental_enable_docker_sandbox
 
 # Remote with docker sandbox fallback
 build:remote --spawn_strategy=remote,docker,linux-sandbox --strategy=Javac=remote,docker,linux-sandbox --genrule_strategy=remote,docker,linux-sandbox
 build:remote --define=EXECUTOR=remote
 build:remote --experimental_docker_verbose
-build:remote --experimental_enable_docker_sandbox
 
 # windows_amd64 docker sandbox build config
 build:windows_amd64_docker --config=docker-sandbox --config=windows_amd64

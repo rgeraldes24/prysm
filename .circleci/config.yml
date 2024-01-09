@@ -97,7 +97,6 @@ jobs:
     resource_class: arm.medium
     steps:
       - checkout
-      #- *install_bazel_linux_arm64
       - setup-bazel:
           platform: "linux-arm64"
       - *restore_bazel_cache
@@ -105,7 +104,7 @@ jobs:
       - run: |
           rm -rf /tmp/bazel-cache/output-root/install
           
-          bin/bazel build --config=release //cmd/beacon-chain //cmd/validator
+          bin/bazel build --config=release --config=linux_arm64_docker //cmd/beacon-chain //cmd/validator
           
           cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-${CIRCLE_TAG}-linux-arm64
           cp bazel-bin/cmd/validator/validator_/validator /tmp/validator-${CIRCLE_TAG}-linux-arm64

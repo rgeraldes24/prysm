@@ -100,7 +100,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - *install_bazel
+      - *install_bazel_linux_amd64
       #- *restore_bazel_cache
       - *set_bazelrc
       - run: |
@@ -188,7 +188,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - *install_bazel
+      - *install_bazel_darwin_amd64
       - *restore_bazel_cache
       - *set_bazelrc
       - run: |
@@ -232,7 +232,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - *install_bazel
+      - *install_bazel_linux_amd64
       - *restore_bazel_cache
       - *set_bazelrc
       - run: |

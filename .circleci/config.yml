@@ -39,12 +39,12 @@ commands:
       platform:
         type: string
         default: "linux-amd64"
-      steps:
-        - run: |
-            curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-<< parameters.platform >>"
-            mkdir -p bin
-            mv bazelisk-linux-amd64 bin/bazel
-            chmod +x bin/bazel
+    steps:
+      - run: |
+          curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-<< parameters.platform >>"
+          mkdir -p bin
+          mv bazelisk-linux-amd64 bin/bazel
+          chmod +x bin/bazel
 
 # install_bazel_linux_amd64: &install_bazel_linux_amd64
 #   run:

@@ -128,8 +128,8 @@ jobs:
       #- *save_bazel_cache
 
   publish-darwin-amd64-beacon-chain-binary:
-    docker:
-      - image: cimg/base:2023.09
+    macos:
+      xcode: 14.2.0
     #resource_class: xlarge
     steps:
       - checkout
@@ -263,8 +263,8 @@ workflows:
   release:
     jobs:
       - publish-linux-amd64-beacon-chain-binary
-      - publish-linux-arm64-beacon-chain-binary
-      #- publish-darwin-amd64-beacon-chain-binary
+      #- publish-linux-arm64-beacon-chain-binary
+      - publish-darwin-amd64-beacon-chain-binary
       #- publish-darwin-arm64-beacon-chain-binary
       #- publish-windows-amd64-beacon-chain-binary
           # filters:

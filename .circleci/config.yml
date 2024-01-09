@@ -276,10 +276,10 @@ workflows:
   release:
     jobs:
       #- publish-linux-amd64-beacon-chain-binary working
-      - publish-linux-arm64-beacon-chain-binary
-      #- publish-darwin-amd64-beacon-chain-binary
-      #- publish-darwin-arm64-beacon-chain-binary
-      #- publish-windows-amd64-beacon-chain-binary
+      #- publish-linux-arm64-beacon-chain-binary TODO
+      - publish-darwin-amd64-beacon-chain-binary
+      - publish-darwin-arm64-beacon-chain-binary
+      #- publish-windows-amd64-beacon-chain-binary TODO
           # filters:
           #   tags:
           #     only: /^circlev.*/

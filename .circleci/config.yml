@@ -141,6 +141,7 @@ jobs:
     resource_class: macos.x86.medium.gen2
     steps:
       - checkout
+      - run: brew install gpg
       #- *install_bazel_darwin_amd64
       - setup-bazel:
           platform: "darwin-amd64"
@@ -186,6 +187,7 @@ jobs:
     resource_class: macos.m1.medium.gen1
     steps:
       - checkout
+      - run: brew install gpg
       #- *install_bazel_darwin_arm64
       - setup-bazel:
           platform: "darwin-arm64"
@@ -277,8 +279,8 @@ workflows:
     jobs:
       #- publish-linux-amd64-beacon-chain-binary working
       #- publish-linux-arm64-beacon-chain-binary TODO
-      - publish-darwin-amd64-beacon-chain-binary
-      - publish-darwin-arm64-beacon-chain-binary
+      #- publish-darwin-amd64-beacon-chain-binary working
+      #- publish-darwin-arm64-beacon-chain-binary account plan
       #- publish-windows-amd64-beacon-chain-binary TODO
           # filters:
           #   tags:

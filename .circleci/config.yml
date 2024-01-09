@@ -56,12 +56,10 @@ jobs:
           platform: "linux-amd64"
       #- *restore_bazel_cache
       - *set_bazelrc
-      - setup_remote_docker
       - run: |
           rm -rf /tmp/bazel-cache/output-root/install
           
-          #bin/bazel build --config=release --define=blst_modern=false //cmd/beacon-chain //cmd/validator
-          bin/bazel build --config=release --config=windows_amd64_docker_debug //cmd/beacon-chain //cmd/validator
+          bin/bazel build --config=release --define=blst_modern=false //cmd/beacon-chain //cmd/validator
           
           cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-${CIRCLE_TAG}-linux-amd64
           cp bazel-bin/cmd/validator/validator_/validator /tmp/validator-${CIRCLE_TAG}-linux-amd64

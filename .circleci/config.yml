@@ -99,7 +99,7 @@ jobs:
       - checkout
       - setup-bazel:
           platform: "linux-arm64"
-      - *restore_bazel_cache
+      #- *restore_bazel_cache
       - *set_bazelrc
       - run: |
           rm -rf /tmp/bazel-cache/output-root/install
@@ -277,8 +277,8 @@ workflows:
     jobs:
       #- publish-linux-amd64-beacon-chain-binary working
       - publish-linux-arm64-beacon-chain-binary
-      - publish-darwin-amd64-beacon-chain-binary
-      - publish-darwin-arm64-beacon-chain-binary
+      #- publish-darwin-amd64-beacon-chain-binary
+      #- publish-darwin-arm64-beacon-chain-binary
       #- publish-windows-amd64-beacon-chain-binary
           # filters:
           #   tags:

@@ -100,7 +100,6 @@ jobs:
     resource_class: arm.medium
     steps:
       - checkout
-      - setup_remote_docker
       - *install_bazel_linux
       - *restore_bazel_cache
       - *set_bazelrc
@@ -234,7 +233,6 @@ jobs:
   #     - run: choco install bazel
   #     - run: bazel build --config=release //cmd/beacon-chain //cmd/validator
 
-      # - setup_remote_docker
       # - *install_bazel_linux_amd64
       # - *restore_bazel_cache
       # - *set_bazelrc

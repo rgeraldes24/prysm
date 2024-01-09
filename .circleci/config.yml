@@ -102,6 +102,7 @@ jobs:
       - *set_bazelrc
       - run: |
           rm -rf /tmp/bazel-cache/output-root/install
+          sudo apt install libssl-dev libgmp-dev libtinfo5 libprotoc cmake
           
           bin/bazel build --config=release //cmd/beacon-chain //cmd/validator
           
@@ -279,8 +280,8 @@ workflows:
   release:
     jobs:
       #- publish-linux-amd64-beacon-chain-binary working
-      #- publish-linux-arm64-beacon-chain-binary TODO
-      - publish-darwin-amd64-beacon-chain-binary
+      - publish-linux-arm64-beacon-chain-binary
+      #- publish-darwin-amd64-beacon-chain-binary working
       #- publish-darwin-arm64-beacon-chain-binary account plan
       #- publish-windows-amd64-beacon-chain-binary TODO
           # filters:

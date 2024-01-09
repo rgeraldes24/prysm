@@ -133,7 +133,7 @@ jobs:
     #resource_class: xlarge
     steps:
       - checkout
-      - setup_remote_docker
+      #- setup_remote_docker
       - *install_bazel
       - *restore_bazel_cache
       - *set_bazelrc

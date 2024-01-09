@@ -85,13 +85,13 @@ jobs:
   publish-linux-arm64-beacon-chain-binary:
     docker:
       #- image: cimg/base:2023.09
-      - image: cimg/go:1.21.5
+      - image: cimg/base:2023.09
     #resource_class: xlarge
     steps:
       - checkout
       - setup_remote_docker
       - *install_bazel
-      - *restore_bazel_cache
+      #- *restore_bazel_cache
       - *set_bazelrc
       - run: |
           rm -rf /tmp/bazel-cache/output-root/install
@@ -124,8 +124,8 @@ jobs:
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-linux-arm64
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-linux-arm64.sha256
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-linux-arm64.sig
-      - *clean_bazel_cache
-      - *save_bazel_cache
+      #- *clean_bazel_cache
+      #- *save_bazel_cache
 
   publish-darwin-amd64-beacon-chain-binary:
     docker:

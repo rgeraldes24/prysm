@@ -1,4 +1,3 @@
-build --announce_rc
 build --disk_cache=/tmp/bazel-disk-cache
 
 # Set convenient location for Bazel files to cache

@@ -52,10 +52,9 @@ jobs:
       - image: cimg/base:2023.09
     steps:
       - checkout
-      #- *install_bazel_linux_amd64
       - setup-bazel:
           platform: "linux-amd64"
-      - *restore_bazel_cache
+      #- *restore_bazel_cache
       - *set_bazelrc
       - run: |
           rm -rf /tmp/bazel-cache/output-root/install
@@ -88,8 +87,8 @@ jobs:
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-linux-amd64
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-linux-amd64.sha256
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-linux-amd64.sig
-      - *clean_bazel_cache
-      - *save_bazel_cache
+      #- *clean_bazel_cache
+      #- *save_bazel_cache
 
   publish-linux-arm64-beacon-chain-binary:
     machine:
@@ -104,7 +103,7 @@ jobs:
       - run: |
           rm -rf /tmp/bazel-cache/output-root/install
           
-          bin/bazel build --config=release --config=linux_arm64_docker //cmd/beacon-chain //cmd/validator
+          bin/bazel build --config=release //cmd/beacon-chain //cmd/validator
           
           cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-${CIRCLE_TAG}-linux-arm64
           cp bazel-bin/cmd/validator/validator_/validator /tmp/validator-${CIRCLE_TAG}-linux-arm64
@@ -139,18 +138,19 @@ jobs:
     macos:
       xcode: 14.2.0
     resource_class: macos.x86.medium.gen2
+    environment:
+      HOMEBREW_NO_AUTO_UPDATE: 1
     steps:
       - checkout
-      #- *install_bazel_darwin_amd64
       - setup-bazel:
           platform: "darwin-amd64"
-      - *restore_bazel_cache
+      #- *restore_bazel_cache
       - *set_bazelrc
       - run: |
           brew install gpg
           rm -rf /tmp/bazel-cache/output-root/install
           
-          bin/bazel build --config=release //cmd/beacon-chain //cmd/validator
+          bin/bazel build --config=release --config=linux_arm64_docker //cmd/beacon-chain //cmd/validator
           
           cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-${CIRCLE_TAG}-darwin-amd64
           cp bazel-bin/cmd/validator/validator_/validator /tmp/validator-${CIRCLE_TAG}-darwin-amd64
@@ -178,19 +178,20 @@ jobs:
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-darwin-amd64
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-darwin-amd64.sha256
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-darwin-amd64.sig
-      - *clean_bazel_cache
-      - *save_bazel_cache
+      #- *clean_bazel_cache
+      #- *save_bazel_cache
 
   publish-darwin-arm64-beacon-chain-binary:
     macos:
       xcode: 14.2.0
     resource_class: macos.m1.medium.gen1
+    environment:
+      HOMEBREW_NO_AUTO_UPDATE: 1
     steps:
       - checkout
-      #- *install_bazel_darwin_arm64
       - setup-bazel:
           platform: "darwin-arm64"
-      - *restore_bazel_cache
+      #- *restore_bazel_cache
       - *set_bazelrc
       - run: |
           brew install gpg
@@ -224,8 +225,8 @@ jobs:
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-darwin-arm64
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-darwin-arm64.sha256
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-darwin-arm64.sig
-      - *clean_bazel_cache
-      - *save_bazel_cache
+      #- *clean_bazel_cache
+      #- *save_bazel_cache
 
   # publish-windows-amd64-beacon-chain-binary:
   #   executor:

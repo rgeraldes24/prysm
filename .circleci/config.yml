@@ -141,13 +141,13 @@ jobs:
     resource_class: macos.x86.medium.gen2
     steps:
       - checkout
-      - run: brew install gpg
       #- *install_bazel_darwin_amd64
       - setup-bazel:
           platform: "darwin-amd64"
       - *restore_bazel_cache
       - *set_bazelrc
       - run: |
+          brew install gpg
           rm -rf /tmp/bazel-cache/output-root/install
           
           bin/bazel build --config=release //cmd/beacon-chain //cmd/validator
@@ -187,13 +187,13 @@ jobs:
     resource_class: macos.m1.medium.gen1
     steps:
       - checkout
-      - run: brew install gpg
       #- *install_bazel_darwin_arm64
       - setup-bazel:
           platform: "darwin-arm64"
       - *restore_bazel_cache
       - *set_bazelrc
       - run: |
+          brew install gpg
           rm -rf /tmp/bazel-cache/output-root/install
           
           bin/bazel build --config=release //cmd/beacon-chain //cmd/validator

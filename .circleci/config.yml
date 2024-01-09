@@ -102,7 +102,7 @@ jobs:
       - *set_bazelrc
       - run: |
           rm -rf /tmp/bazel-cache/output-root/install
-          sudo apt install libssl-dev libgmp-dev libtinfo5 libprotoc cmake
+          sudo apt install libssl-dev libgmp-dev libtinfo5 cmake
           
           bin/bazel build --config=release //cmd/beacon-chain //cmd/validator
           

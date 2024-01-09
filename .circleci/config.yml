@@ -84,7 +84,8 @@ jobs:
 
   publish-linux-arm64-beacon-chain-binary:
     docker:
-      - image: cimg/base:2023.09
+      #- image: cimg/base:2023.09
+      - image: cimg/go
     #resource_class: xlarge
     steps:
       - checkout
@@ -263,9 +264,9 @@ workflows:
     jobs:
       - publish-linux-amd64-beacon-chain-binary
       - publish-linux-arm64-beacon-chain-binary
-      - publish-darwin-amd64-beacon-chain-binary
-      - publish-darwin-arm64-beacon-chain-binary
-      - publish-windows-amd64-beacon-chain-binary
+      #- publish-darwin-amd64-beacon-chain-binary
+      #- publish-darwin-arm64-beacon-chain-binary
+      #- publish-windows-amd64-beacon-chain-binary
           # filters:
           #   tags:
           #     only: /^circlev.*/

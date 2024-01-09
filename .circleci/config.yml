@@ -33,7 +33,7 @@ set_bazelrc: &set_bazelrc
     name: Set bazelrc
     command: cat .circleci/bazelrc >> .bazelrc
 
-install_bazel_linux: &install_bazel_linux
+install_bazel_linux_amd64: &install_bazel_linux_amd64
   run:
     name: Install bazel
     command: |
@@ -42,13 +42,31 @@ install_bazel_linux: &install_bazel_linux
       mv bazelisk-linux-amd64 bin/bazel
       chmod +x bin/bazel
 
-install_bazel_darwin: &install_bazel_darwin
+install_bazel_linux_arm64: &install_bazel_linux_arm64
+  run:
+    name: Install bazel
+    command: |
+      curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-linux-arm64"
+      mkdir -p bin
+      mv bazelisk-linux-arm64 bin/bazel
+      chmod +x bin/bazel
+
+install_bazel_darwin_amd64: &install_bazel_darwin_amd64
   run:
     name: Install bazel
     command: |
       curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-darwin-amd64"
       mkdir -p bin
       mv bazelisk-darwin-amd64 bin/bazel
+      chmod +x bin/bazel
+
+install_bazel_darwin_arm64: &install_bazel_darwin_arm64
+  run:
+    name: Install bazel
+    command: |
+      curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-darwin-arm64"
+      mkdir -p bin
+      mv bazelisk-darwin-arm64 bin/bazel
       chmod +x bin/bazel
 
 jobs:

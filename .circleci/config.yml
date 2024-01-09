@@ -55,7 +55,6 @@ jobs:
   publish-linux-amd64-beacon-chain-binary:
     docker:
       - image: cimg/base:2023.09
-    #resource_class: xlarge
     steps:
       - checkout
       - *install_bazel_linux
@@ -64,7 +63,7 @@ jobs:
       - run: |
           rm -rf /tmp/bazel-cache/output-root/install
           
-          bin/bazel build --config=release --config=linux_amd64 --define=blst_modern=false //cmd/beacon-chain //cmd/validator
+          bin/bazel build --config=release --define=blst_modern=false //cmd/beacon-chain //cmd/validator
           
           cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-${CIRCLE_TAG}-linux-amd64
           cp bazel-bin/cmd/validator/validator_/validator /tmp/validator-${CIRCLE_TAG}-linux-amd64
@@ -96,19 +95,19 @@ jobs:
       - *save_bazel_cache
 
   publish-linux-arm64-beacon-chain-binary:
-    docker:
-      - image: cimg/base:2023.09
-    #resource_class: xlarge
+    machine:
+      image: ubuntu-2204:2023.07.1
+    resource_class: arm.medium
     steps:
       - checkout
       - setup_remote_docker
       - *install_bazel_linux
-      #- *restore_bazel_cache
+      - *restore_bazel_cache
       - *set_bazelrc
       - run: |
           rm -rf /tmp/bazel-cache/output-root/install
           
-          bin/bazel build --config=release --config=linux_arm64_docker //cmd/beacon-chain //cmd/validator
+          bin/bazel build --config=release //cmd/beacon-chain //cmd/validator
           
           cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-${CIRCLE_TAG}-linux-arm64
           cp bazel-bin/cmd/validator/validator_/validator /tmp/validator-${CIRCLE_TAG}-linux-arm64
@@ -145,13 +144,12 @@ jobs:
     resource_class: macos.x86.medium.gen2
     steps:
       - checkout
-      - *install_bazel_darwin_amd64
+      - *install_bazel_darwin
       - *restore_bazel_cache
       - *set_bazelrc
       - run: |
           rm -rf /tmp/bazel-cache/output-root/install
           
-          #bin/bazel build --config=release --config=osx_amd64_docker //cmd/beacon-chain //cmd/validator
           bin/bazel build --config=release //cmd/beacon-chain //cmd/validator
           
           cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-${CIRCLE_TAG}-darwin-amd64
@@ -277,8 +275,8 @@ jobs:
 workflows:
   release:
     jobs:
-      #- publish-linux-amd64-beacon-chain-binary
-      #- publish-linux-arm64-beacon-chain-binary
+      - publish-linux-amd64-beacon-chain-binary
+      - publish-linux-arm64-beacon-chain-binary
       - publish-darwin-amd64-beacon-chain-binary
       - publish-darwin-arm64-beacon-chain-binary
       #- publish-windows-amd64-beacon-chain-binary

@@ -1,5 +1,12 @@
 version: 2.1
 
+release_only: &release_only
+  filters:
+    tags:
+      only: /^v.*/
+    # branches:
+      # ignore: /.*/       
+
 restore_bazel_cache: &restore_bazel_cache
   restore_cache:
     keys:
@@ -46,6 +53,8 @@ commands:
       platform:
         type: string
         default: "linux-amd64"
+      github_token:
+        type: string
     steps:
       - run: |
           cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >>
@@ -67,12 +76,12 @@ commands:
           gpg -o /tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >>.sig --sign --detach-sig /tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >>
           gpg -o /tmp/validator-${CIRCLE_TAG}-<< parameters.platform >>.sig --sign --detach-sig /tmp/validator-${CIRCLE_TAG}-<< parameters.platform >>
 
-          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >>"
-          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >>".sha256
-          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >>".sig
-          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-<< parameters.platform >>"
-          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-<< parameters.platform >>".sha256
-          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-<< parameters.platform >>".sig
+          ./hack/upload-github-release-asset.sh github_api_token=<< parameters.github_token >> owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >>"
+          ./hack/upload-github-release-asset.sh github_api_token=<< parameters.github_token >> owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >>".sha256
+          ./hack/upload-github-release-asset.sh github_api_token=<< parameters.github_token >> owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >>".sig
+          ./hack/upload-github-release-asset.sh github_api_token=<< parameters.github_token >> owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-<< parameters.platform >>"
+          ./hack/upload-github-release-asset.sh github_api_token=<< parameters.github_token >> owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-<< parameters.platform >>".sha256
+          ./hack/upload-github-release-asset.sh github_api_token=<< parameters.github_token >> owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-<< parameters.platform >>".sig
   
 
 jobs:
@@ -92,6 +101,7 @@ jobs:
           bin/bazel build --config=release --define=blst_modern=false //cmd/beacon-chain //cmd/validator
       - prepare-publish-artifacts:
           platform: "linux-amd64"
+          github_token: $GITHUB_TOKEN
       - *clean_bazel_cache
       - *save_bazel_cache
 
@@ -265,13 +275,12 @@ workflows:
   release:
     jobs:
       - publish-linux-amd64-beacon-chain-binary
-      #- publish-linux-arm64-beacon-chain-binary
-      #- publish-darwin-amd64-beacon-chain-binary
-      #- publish-darwin-arm64-beacon-chain-binary
-      #- publish-windows-amd64-beacon-chain-binary
-          # filters:
-          #   tags:
-          #     only: /^circlev.*/
-          #     #only: /^v.*/
-          #   # branches:
-          #   #   ignore: /.*/
+          <<: *release_only
+      - publish-linux-arm64-beacon-chain-binary
+          <<: *release_only
+      - publish-darwin-amd64-beacon-chain-binary
+          <<: *release_only
+      - publish-darwin-arm64-beacon-chain-binary
+          <<: *release_only
+      - publish-windows-amd64-beacon-chain-binary
+          <<: *release_only

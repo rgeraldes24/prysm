@@ -275,12 +275,12 @@ workflows:
   release:
     jobs:
       - publish-linux-amd64-beacon-chain-binary
-          <<: *release_only
+        <<: *release_only
       - publish-linux-arm64-beacon-chain-binary
-          <<: *release_only
+        <<: *release_only
       - publish-darwin-amd64-beacon-chain-binary
-          <<: *release_only
+        <<: *release_only
       - publish-darwin-arm64-beacon-chain-binary
-          <<: *release_only
+        <<: *release_only
       - publish-windows-amd64-beacon-chain-binary
-          <<: *release_only
+        <<: *release_only

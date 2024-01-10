@@ -9,7 +9,7 @@ startup --output_user_root=/tmp/bazel-cache/output-root
 # startup --digest_function=blake3
 
 startup --host_jvm_args=-Xmx8g --host_jvm_args=-Xms4g
-build --experimental_strict_action_env
+#build --experimental_strict_action_env
 #build --sandbox_tmpfs_path=/tmp
 build --verbose_failures
 build --announce_rc

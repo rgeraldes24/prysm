@@ -45,6 +45,20 @@ commands:
           mkdir -p bin
           mv bazelisk-<< parameters.platform >> bin/bazel
           chmod +x bin/bazel
+  upload-artifacts:
+    parameters:
+      platform:
+        type: string
+        default: "linux-amd64"
+    steps:
+      - run: |
+          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >>"
+          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >>".sha256
+          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >>".sig
+          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-<< parameters.platform >>"
+          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-<< parameters.platform >>".sha256
+          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-<< parameters.platform >>".sig
+  
 
 jobs:
   publish-linux-amd64-beacon-chain-binary:
@@ -100,7 +114,7 @@ jobs:
       - checkout
       - setup-bazel:
           platform: "linux-arm64"
-      - *restore_bazel_cache
+      #- *restore_bazel_cache
       - *set_bazelrc
       - run: |
           rm -rf /tmp/bazel-cache/output-root/install
@@ -126,13 +140,8 @@ jobs:
                              echo "%no-protection"; )
           gpg -o /tmp/beacon-chain-${CIRCLE_TAG}-linux-arm64.sig --sign --detach-sig /tmp/beacon-chain-${CIRCLE_TAG}-linux-arm64
           gpg -o /tmp/validator-${CIRCLE_TAG}-linux-arm64.sig --sign --detach-sig /tmp/validator-${CIRCLE_TAG}-linux-arm64
-
-          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/beacon-chain-${CIRCLE_TAG}-linux-arm64
-          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/beacon-chain-${CIRCLE_TAG}-linux-arm64.sha256
-          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/beacon-chain-${CIRCLE_TAG}-linux-arm64.sig
-          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-linux-arm64
-          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-linux-arm64.sha256
-          ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-linux-arm64.sig
+      - upload-artifacts:
+          platform: "linux-arm64"
       - *clean_bazel_cache
       - *save_bazel_cache
 
@@ -195,7 +204,7 @@ jobs:
           rm -rf /tmp/bazel-cache/output-root/install
           sudo apt install libssl-dev libgmp-dev libtinfo5 cmake
           
-          bin/bazel build --config=release --config=darwin_arm64_docker //cmd/beacon-chain //cmd/validator
+          bin/bazel build --config=release --config=osx_arm64_docker //cmd/beacon-chain //cmd/validator
           
           cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-${CIRCLE_TAG}-darwin-arm64
           cp bazel-bin/cmd/validator/validator_/validator /tmp/validator-${CIRCLE_TAG}-darwin-arm64
@@ -267,11 +276,11 @@ jobs:
 workflows:
   release:
     jobs:
-      - publish-linux-amd64-beacon-chain-binary
+      #- publish-linux-amd64-beacon-chain-binary
       - publish-linux-arm64-beacon-chain-binary
-      - publish-darwin-amd64-beacon-chain-binary
+      #- publish-darwin-amd64-beacon-chain-binary
       - publish-darwin-arm64-beacon-chain-binary
-      - publish-windows-amd64-beacon-chain-binary
+      #- publish-windows-amd64-beacon-chain-binary
           # filters:
           #   tags:
           #     only: /^circlev.*/

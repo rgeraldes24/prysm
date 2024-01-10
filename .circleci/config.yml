@@ -175,19 +175,19 @@ jobs:
 workflows:
   release:
     jobs:
-      # - publish-linux-amd64-beacon-chain-binary:
-      #     filters:
-      #       <<: *filters-release
-      - publish-linux-arm64-beacon-chain-binary
-      #     filters:
-      #       <<: *filters-release
-      # - publish-darwin-amd64-beacon-chain-binary:
-      #     filters:
-      #       <<: *filters-release
-      # - publish-darwin-arm64-beacon-chain-binary:
-      #     filters:
-      #       <<: *filters-release
-      # - publish-windows-amd64-beacon-chain-binary:
-      #     filters: 
-      #       <<: *filters-release
+      - publish-linux-amd64-beacon-chain-binary:
+          filters:
+            <<: *filters-release
+      - publish-linux-arm64-beacon-chain-binary:
+          filters:
+            <<: *filters-release
+      - publish-darwin-amd64-beacon-chain-binary:
+          filters:
+            <<: *filters-release
+      - publish-darwin-arm64-beacon-chain-binary:
+          filters:
+            <<: *filters-release
+      - publish-windows-amd64-beacon-chain-binary:
+          filters: 
+            <<: *filters-release
             

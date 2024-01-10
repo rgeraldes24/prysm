@@ -1,36 +1,35 @@
 version: 2.1
 
-commands:
-  set_bazelrc:
-    run:
-      name: Set bazelrc
-      command: cat .circleci/bazelrc >> .bazelrc
-  
-  clean_bazel_cache:
-    run:
-      name: Clean Bazel disk cache of files that have not been modified in 30 days
-      # mtime is the only time preserved after untaring the cache.
-      command: /usr/bin/find /tmp/bazel-disk-cache -mtime +30 -exec rm -v {} \;
+restore_bazel_cache: &restore_bazel_cache
+  restore_cache:
+    keys:
+      - v4-bazel-cache-{{ .Environment.CIRCLE_JOB }}-{{ .Branch }}-{{ .Revision }}
+      - v4-bazel-cache-{{ .Environment.CIRCLE_JOB }}-{{ .Branch }}
+      - v4-bazel-cache-{{ .Environment.CIRCLE_JOB }}-main
 
-  
-  restore_bazel_cache:
-    restore_cache:
-      keys:
-        - v4-bazel-cache-{{ .Environment.CIRCLE_JOB }}-{{ .Branch }}-{{ .Revision }}
-        - v4-bazel-cache-{{ .Environment.CIRCLE_JOB }}-{{ .Branch }}
-        - v4-bazel-cache-{{ .Environment.CIRCLE_JOB }}-main
-  
-  save_bazel_cache:
-    save_cache:
-      # Always saving the cache, even in case of failures, helps with completing
-      # jobs where the bazel process was killed because it took too long or OOM.
-      # Restart the job if you see the bazel server being terminated abruptly.
-      when: always
-      key: v4-bazel-cache-{{ .Environment.CIRCLE_JOB }}-{{ .Branch }}-{{ .Revision }}
-      paths:
-        - /tmp/bazel-cache
-        - /tmp/bazel-disk-cache
-  
+save_bazel_cache:
+  save_cache:
+    # Always saving the cache, even in case of failures, helps with completing
+    # jobs where the bazel process was killed because it took too long or OOM.
+    # Restart the job if you see the bazel server being terminated abruptly.
+    when: always
+    key: v4-bazel-cache-{{ .Environment.CIRCLE_JOB }}-{{ .Branch }}-{{ .Revision }}
+    paths:
+      - /tmp/bazel-cache
+      - /tmp/bazel-disk-cache
+
+clean_bazel_cache: &clean_bazel_cache
+  run:
+    name: Clean Bazel disk cache of files that have not been modified in 30 days
+    # mtime is the only time preserved after untaring the cache.
+    command: /usr/bin/find /tmp/bazel-disk-cache -mtime +30 -exec rm -v {} \;
+
+set_bazelrc: &set_bazelrc
+  run:
+    name: Set bazelrc
+    command: cat .circleci/bazelrc >> .bazelrc
+
+commands:
   setup-bazel:
     parameters:
       platform:
@@ -42,7 +41,6 @@ commands:
           mkdir -p bin
           mv bazelisk-<< parameters.platform >> bin/bazel
           chmod +x bin/bazel
-  
   prepare-publish-artifacts:
     parameters:
       platform:
@@ -75,6 +73,7 @@ commands:
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-<< parameters.platform >>"
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-<< parameters.platform >>".sha256
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/validator-${CIRCLE_TAG}-<< parameters.platform >>".sig
+  
 
 jobs:
   publish-linux-amd64-beacon-chain-binary:
@@ -109,7 +108,6 @@ jobs:
       - run: |
           rm -rf /tmp/bazel-cache/output-root/install
           sudo apt install libssl-dev libgmp-dev libtinfo5 cmake
-          
           bin/bazel build --config=release //cmd/beacon-chain //cmd/validator
           
           cp bazel-bin/cmd/beacon-chain/beacon-chain_/beacon-chain /tmp/beacon-chain-${CIRCLE_TAG}-linux-arm64

@@ -169,22 +169,37 @@ workflows:
   release:
     jobs:
       - publish-linux-amd64-beacon-chain-binary
-          filters:
+          filters: 
             tags:
-              only: /^v.*/
+              only: 
+                - /^v.*/
+            branches:
+              ignore: /.*/
       - publish-linux-arm64-beacon-chain-binary
-          filters:
+          filters: 
             tags:
-              only: /^v.*/
+              only: 
+                - /^v.*/
+            branches:
+              ignore: /.*/
       - publish-darwin-amd64-beacon-chain-binary
-          filters:
+          filters: 
             tags:
-              only: /^v.*/  
+              only: 
+                - /^v.*/
+            branches:
+              ignore: /.*/ 
       - publish-darwin-arm64-beacon-chain-binary
-          filters:
+          filters: 
             tags:
-              only: /^v.*/
+              only: 
+                - /^v.*/
+            branches:
+              ignore: /.*/
       - publish-windows-amd64-beacon-chain-binary
-          filters:
+          filters: 
             tags:
-              only: /^v.*/
+              only: 
+                - /^v.*/
+            branches:
+              ignore: /.*/

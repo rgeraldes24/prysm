@@ -169,12 +169,12 @@ workflows:
   release:
     jobs:
       - publish-linux-amd64-beacon-chain-binary
-          filters: 
-            tags:
-              only: 
-                - /^v.*/
-            branches:
-              ignore: /.*/
+        filters: 
+          tags:
+            only: 
+              - /^v.*/
+          branches:
+            ignore: /.*/
       - publish-linux-arm64-beacon-chain-binary
           filters: 
             tags:

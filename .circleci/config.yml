@@ -127,6 +127,7 @@ jobs:
       - *set_bazelrc
       - run: |
           brew install gpg
+          brew install coreutils # required for sha256sum cmd
           rm -rf /tmp/bazel-cache/output-root/install
           bin/bazel build --config=release //cmd/beacon-chain //cmd/validator
       - prepare-publish-artifacts:

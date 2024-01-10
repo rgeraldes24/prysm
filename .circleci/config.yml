@@ -178,7 +178,7 @@ workflows:
       # - publish-linux-amd64-beacon-chain-binary:
       #     filters:
       #       <<: *filters-release
-      - publish-linux-arm64-beacon-chain-binary:
+      - publish-linux-arm64-beacon-chain-binary
       #     filters:
       #       <<: *filters-release
       # - publish-darwin-amd64-beacon-chain-binary:

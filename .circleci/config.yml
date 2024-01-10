@@ -1,11 +1,5 @@
 version: 2.1
 
-release_only: &release_only
-  filters:
-    tags:
-      only: /^v.*/
-    # branches:
-      # ignore: /.*/       
 
 restore_bazel_cache: &restore_bazel_cache
   restore_cache:
@@ -35,6 +29,7 @@ set_bazelrc: &set_bazelrc
   run:
     name: Set bazelrc
     command: cat .circleci/bazelrc >> .bazelrc
+
 
 commands:
   setup-bazel:
@@ -275,12 +270,22 @@ workflows:
   release:
     jobs:
       - publish-linux-amd64-beacon-chain-binary
-        <<: *release_only
-      - publish-linux-arm64-beacon-chain-binary
-        <<: *release_only
-      - publish-darwin-amd64-beacon-chain-binary
-        <<: *release_only
-      - publish-darwin-arm64-beacon-chain-binary
-        <<: *release_only
-      - publish-windows-amd64-beacon-chain-binary
-        <<: *release_only
+      #     filters:
+      #       tags:
+      #         only: /^v.*/
+      # - publish-linux-arm64-beacon-chain-binary
+      #     filters:
+      #       tags:
+      #         only: /^v.*/
+      # - publish-darwin-amd64-beacon-chain-binary
+      #     filters:
+      #       tags:
+      #         only: /^v.*/  
+      # - publish-darwin-arm64-beacon-chain-binary
+      #     filters:
+      #       tags:
+      #         only: /^v.*/
+      # - publish-windows-amd64-beacon-chain-binary
+      #     filters:
+      #       tags:
+      #         only: /^v.*/

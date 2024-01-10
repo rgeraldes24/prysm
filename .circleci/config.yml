@@ -85,7 +85,7 @@ jobs:
   publish-linux-amd64-beacon-chain-binary:
     machine:
       image: ubuntu-2004:current
-      resource_class: medium
+    resource_class: medium
     steps:
       - checkout
       - setup-bazel:
@@ -104,17 +104,17 @@ jobs:
   publish-linux-arm64-beacon-chain-binary:
     machine:
       image: ubuntu-2004:current
-    resource_class: arm.medium
+    resource_class: medium
     steps:
       - checkout
       - setup-bazel:
-          platform: "linux-arm64"
+          platform: "linux-amd64"
       - *restore_bazel_cache
       - *set_bazelrc
       - run: |
           rm -rf /tmp/bazel-cache/output-root/install
           sudo apt install libssl-dev libgmp-dev libtinfo5 cmake
-          bin/bazel build --config=release //cmd/beacon-chain //cmd/validator
+          bin/bazel build --config=release --config=linux_arm64_docker //cmd/beacon-chain //cmd/validator
       - prepare-publish-artifacts:
           platform: "linux-arm64"
       - *clean_bazel_cache
@@ -175,19 +175,19 @@ jobs:
 workflows:
   release:
     jobs:
-      - publish-linux-amd64-beacon-chain-binary:
-          filters:
-            <<: *filters-release
+      # - publish-linux-amd64-beacon-chain-binary:
+      #     filters:
+      #       <<: *filters-release
       - publish-linux-arm64-beacon-chain-binary:
-          filters:
-            <<: *filters-release
-      - publish-darwin-amd64-beacon-chain-binary:
-          filters:
-            <<: *filters-release
-      - publish-darwin-arm64-beacon-chain-binary:
-          filters:
-            <<: *filters-release
-      - publish-windows-amd64-beacon-chain-binary:
-          filters:
-            <<: *filters-release
+      #     filters:
+      #       <<: *filters-release
+      # - publish-darwin-amd64-beacon-chain-binary:
+      #     filters:
+      #       <<: *filters-release
+      # - publish-darwin-arm64-beacon-chain-binary:
+      #     filters:
+      #       <<: *filters-release
+      # - publish-windows-amd64-beacon-chain-binary:
+      #     filters: 
+      #       <<: *filters-release
             

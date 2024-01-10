@@ -1,5 +1,12 @@
 version: 2.1
 
+filters-release: &filters-release
+  tags:
+    only: 
+      - /^v.*/
+  branches:
+    ignore: /.*/
+
 restore_bazel_cache: &restore_bazel_cache
   restore_cache:
     keys:
@@ -168,38 +175,19 @@ jobs:
 workflows:
   release:
     jobs:
-      - publish-linux-amd64-beacon-chain-binary
-        filters: 
-          tags:
-            only: 
-              - /^v.*/
-          branches:
-            ignore: /.*/
-      - publish-linux-arm64-beacon-chain-binary
-          filters: 
-            tags:
-              only: 
-                - /^v.*/
-            branches:
-              ignore: /.*/
-      - publish-darwin-amd64-beacon-chain-binary
-          filters: 
-            tags:
-              only: 
-                - /^v.*/
-            branches:
-              ignore: /.*/ 
-      - publish-darwin-arm64-beacon-chain-binary
-          filters: 
-            tags:
-              only: 
-                - /^v.*/
-            branches:
-              ignore: /.*/
-      - publish-windows-amd64-beacon-chain-binary
-          filters: 
-            tags:
-              only: 
-                - /^v.*/
-            branches:
-              ignore: /.*/
+      - publish-linux-amd64-beacon-chain-binary:
+          filters:
+            <<: *filters-release
+      - publish-linux-arm64-beacon-chain-binary:
+          filters:
+            <<: *filters-release
+      - publish-darwin-amd64-beacon-chain-binary:
+          filters:
+            <<: *filters-release
+      - publish-darwin-arm64-beacon-chain-binary:
+          filters:
+            <<: *filters-release
+      - publish-windows-amd64-beacon-chain-binary:
+          filters:
+            <<: *filters-release
+            

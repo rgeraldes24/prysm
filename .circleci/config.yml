@@ -64,18 +64,10 @@ commands:
           (cd /tmp && sha256sum beacon-chain-${CIRCLE_TAG}-<< parameters.platform >><< parameters.file_extension >> > beacon-chain-${CIRCLE_TAG}-<< parameters.platform >><< parameters.file_extension >>.sha256)
           (cd /tmp && sha256sum validator-${CIRCLE_TAG}-<< parameters.platform >><< parameters.file_extension >> > validator-${CIRCLE_TAG}-<< parameters.platform >><< parameters.file_extension >>.sha256)
 
-          # TODO(rgeraldes24): replace default key --default-key 0AE0051D647BA3C1A917AF4072E33E4DF1A5036E 
-          # TODO(rgeraldes24): remove as soon as the key is available in the machine
-          gpg --full-gen-key --batch <(echo "Key-Type: 1"; \
-                             echo "Key-Length: 4096"; \
-                             echo "Subkey-Type: 1"; \
-                             echo "Subkey-Length: 4096"; \
-                             echo "Expire-Date: 0"; \
-                             echo "Name-Real: Root Superuser"; \
-                             echo "Name-Email: root@handbook.westarete.com"; \
-                             echo "%no-protection"; )
-          gpg -o /tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >><< parameters.file_extension >>.sig --sign --detach-sig /tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >><< parameters.file_extension >>
-          gpg -o /tmp/validator-${CIRCLE_TAG}-<< parameters.platform >><< parameters.file_extension >>.sig --sign --detach-sig /tmp/validator-${CIRCLE_TAG}-<< parameters.platform >><< parameters.file_extension >>
+          # TODO(rgeraldes24): replace default key --default-key C6A8251946339065ECE9B1553D2EF77E42EB27AE 
+          echo -n "$GPG_KEY" | base64 --decode | gpg --import
+          gpg -o /tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >><< parameters.file_extension >>.sig --default-key C6A8251946339065ECE9B1553D2EF77E42EB27AE --sign --detach-sig /tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >><< parameters.file_extension >>
+          gpg -o /tmp/validator-${CIRCLE_TAG}-<< parameters.platform >><< parameters.file_extension >>.sig --default-key C6A8251946339065ECE9B1553D2EF77E42EB27AE --sign --detach-sig /tmp/validator-${CIRCLE_TAG}-<< parameters.platform >><< parameters.file_extension >>
 
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >><< parameters.file_extension >>
           ./hack/upload-github-release-asset.sh github_api_token=$GITHUB_TOKEN owner=rgeraldes24 repo=prysm tag=v0.1.0 filename=/tmp/beacon-chain-${CIRCLE_TAG}-<< parameters.platform >><< parameters.file_extension >>.sha256
@@ -191,7 +183,7 @@ workflows:
       # - publish-darwin-arm64-beacon-chain-binary:
       #     filters:
       #       <<: *filters-release
-      - publish-windows-amd64-beacon-chain-binary
-          # filters: 
-          #   <<: *filters-release
+      # - publish-windows-amd64-beacon-chain-binary:
+      #     filters: 
+      #       <<: *filters-release
             
